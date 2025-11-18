@@ -44,11 +44,11 @@ startsWith mess t = t `T.isPrefixOf` (T.toLower . messageContent $ mess)
 --
 
 getToken :: IO T.Text
-getToken = TIO.readFile "apidata/token"
+getToken = TIO.readFile "../discord-bot-apidata/token"
 
 getGuildId :: IO GuildId
 getGuildId = do
-  gids <- readFile "apidata/guildid"
+  gids <- readFile "../discord-bot-apidata/guildid"
   case readMaybe gids of
     Just g -> pure g
     Nothing -> error "could not read guild id from `apidata/guildid`"
