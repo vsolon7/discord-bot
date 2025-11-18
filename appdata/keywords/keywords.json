@@ -3,15 +3,23 @@
     "test", [
               "test", 
               "eyes",
-              "I HAVE REPLIED"
+              "I have read the message."
             ]
   ],
 
   [
-    "2test", [
-              "2test", 
-              "eyes",
-              "I HAVE REPLIED2"
+    "?monad", [
+              "?monad", 
+              "null",
+              "A monad is a non-physical, indestructible atom of nature (just read Leibniz)"
+            ]
+  ]
+
+  [
+    "?universe destructinator", [
+              "?universe destructinator", 
+              "null",
+              "HEY WOAH MAN, DON'T SHOOT. I'm not bothering anybody. I only TURNED ON the universe destructinator -- I wasn't planning on actually activating it, that would be insane. We have to test these things, you know? No need to get so bothered about it.'"
             ]
   ]
 ]
