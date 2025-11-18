@@ -8,10 +8,13 @@ import Discord.Types
 import Discord.Interactions
 import Data.List (find)
 import Control.Monad (forM_)
-import Utils (startsWith, echo, showT, getToken, getGuildId)
+import Utils (startsWith, echo, showT, getToken, getGuildId, parseJSONResponses)
 import qualified Discord.Requests as R
 import qualified Data.Aeson as A
 import Commands
+import Utils
+
+_KEYWORD_RESPONSE_FILE_PATH = "appdata/keywords/keywords.json"
 
 -- Main function.
 -- getToken and getGuildId are in Utils.hs
@@ -19,10 +22,11 @@ main :: IO ()
 main = do
   tok <- getToken
   guildId <- getGuildId
+  keyResJSONData <- parseJSONResponses _KEYWORD_RESPONSE_FILE_PATH
 
   botTerminationError <- runDiscord $ def
     { discordToken = tok
-    , discordOnEvent = onDiscordEvent guildId
+    , discordOnEvent = onDiscordEvent keyResJSONData guildId
     , discordGatewayIntent = def { gatewayIntentMessageContent = True }
     }
 
@@ -30,11 +34,11 @@ main = do
 
 -- EVENTS
 
-onDiscordEvent :: GuildId -> Event -> DiscordHandler ()
-onDiscordEvent guildId = \case
+onDiscordEvent :: [KeywordResponse] -> GuildId -> Event -> DiscordHandler ()
+onDiscordEvent resList guildId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId guildId
   InteractionCreate intr                         -> onInteractionCreate intr
-  MessageCreate     mess                         -> onMessageCreate mess
+  MessageCreate     mess                         -> onMessageCreate resList mess
   _                                              -> pure ()
 
 
@@ -93,12 +97,12 @@ onInteractionCreate = \case
     pure () -- Unexpected/unsupported interaction type
 
 -- TODO: myKeywordResponses should be read in from the .json file
-onMessageCreate :: Message -> DiscordHandler ()
-onMessageCreate mess = case
-  find (\res -> mess `startsWith` (responseKeyword res)) myKeywordResponses
+onMessageCreate :: [KeywordResponse] -> Message -> DiscordHandler ()
+onMessageCreate resList mess = case
+  find (\res -> mess `startsWith` (responseKeyword res)) resList
   of
     Just found ->
       responseHandler found mess
     
     Nothing -> pure ()
-----
+--------

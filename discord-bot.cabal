@@ -74,7 +74,8 @@ executable discord-bot
       text ^>= 2.1.2,
       time ^>= 1.14,
       aeson ^>= 2.2.3.0,
-      bytestring ^>= 0.12.2.0
+      bytestring ^>= 0.12.2.0,
+      attoparsec ^>= 0.14.4
 
     -- Directories containing source files.
     hs-source-dirs:   app

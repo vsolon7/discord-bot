@@ -1,6 +1,17 @@
-{
-  "name": "test",
-  "keyword": "test",
-  "emojiReactId": "eyes",
-  "messageReply": "I HAVE REPLIED"
-}
+[
+  [
+    "test", [
+              "test", 
+              "eyes",
+              "I HAVE REPLIED"
+            ]
+  ],
+
+  [
+    "2test", [
+              "2test", 
+              "eyes",
+              "I HAVE REPLIED2"
+            ]
+  ]
+]

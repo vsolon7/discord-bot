@@ -13,40 +13,12 @@ import qualified Data.Text as T
 import Data.Time (getCurrentTime)
 import Utils
 
-data SlashCommand = SlashCommand
-  { commandName :: Text
-  , commandRegistration :: Maybe CreateApplicationCommand
-  , commandHandler :: Interaction -> Maybe OptionsData -> DiscordHandler ()
-  }
-
-data KeywordResponse = KeywordResponse
-  { responseName :: Text
-  , responseKeyword :: Text
-  , responseHandler :: Message -> DiscordHandler()
-  }
-
-responseFromJSONTemplate :: Response -> KeywordResponse
-responseFromJSONTemplate res = KeywordResponse
-  { responseName = rName res
-  , responseKeyword = rKeyword res
-  , responseHandler = \mess -> do
-      void . restCall $
-        R.CreateReaction
-          (messageChannelId mess, messageId mess)
-          (rEmojiReactId res)
-
-      threadDelay (2 * 10^(5 :: Int))
-
-      void . restCall $
-        R.CreateMessage
-          (messageChannelId mess)
-          (rMessageReply res)
-  }
 
 slashCommandFromTemplate :: Text    -> -- Slash Command Name
                             Text    -> -- Registration Description
                             IO Text -> -- Text diplayed in the interaction response, possibly obtained with IO
                             SlashCommand
+
 slashCommandFromTemplate
   name
   regDesc
@@ -69,8 +41,8 @@ _ARGTIMER_FILEPATH = "appdata/savedtime"
 mySlashCommands :: [SlashCommand]
 mySlashCommands = [ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp]
 
-myKeywordResponses :: [KeywordResponse]
-myKeywordResponses = [responseFromJSONTemplate testResponseFromJSON]
+customKeywordResponses :: [KeywordResponse]
+customKeywordResponses = []
 
 ping :: SlashCommand
 ping = slashCommandFromTemplate
@@ -96,7 +68,7 @@ resetArgCounter = slashCommandFromTemplate
     saveTimeIO = do
       currTime <- getCurrentTime
       setSavedTime _ARGTIMER_FILEPATH currTime
-      return $ T.pack "Time since the last autistic argument: 0 days"
+      return "Time since the last autistic argument: 0 days"
 
 
 viewArgCounter :: SlashCommand
@@ -130,11 +102,3 @@ giantGlorp = "I⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢠⣄⠄⠄⠄⠄⠄�
           ++ "I⠄⠄⠄⠄⠄⢸⣿⣿⣿⣿⣿⣿⣿⣿⣭⣤⣽⣿⣿⣿⣿⢿⣻⡇⠄⠄⠄I\n"
           ++ "I⠄⠄⠄⠄⠄⣼⣿⣿⣿⣿⣿⣿⡿⢿⡿⣿⢿⣟⣛⣿⣷⣿⣿⣿⣂⠄⠄I\n"
           ++ "I⠄⠄⠄⠄⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠄I\n"
-
-testResponseFromJSON :: Response
-testResponseFromJSON = Response
-                      { rName = "testResponse"
-                      , rKeyword = "test"
-                      , rEmojiReactId = "eyes"
-                      , rMessageReply = "I have read the message."
-                      }

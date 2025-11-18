@@ -1,28 +1,37 @@
-{-# LANGUAGE DeriveGeneric #-}
 module Utils where
 
 import Data.Text (Text)
 import UnliftIO (liftIO)
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
-import Control.Monad.IO.Class (MonadIO)
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Text.IO as TIO
-import Discord
 import qualified Discord.Requests as R
+import qualified Data.Aeson as A
+import qualified Data.Attoparsec.ByteString as AT
+import Control.Monad.IO.Class (MonadIO)
+import UnliftIO (liftIO)
+import UnliftIO.Concurrent
+import Control.Monad (void)
+import Discord
 import Discord.Types
+import Discord.Interactions
 import Text.Read (readMaybe)
 import Data.Time.Clock (getCurrentTime, diffUTCTime, NominalDiffTime)
-import qualified Data.Aeson as A
-import GHC.Generics
 
-data Response = Response
-  { rName :: T.Text
-  , rKeyword :: T.Text
-  , rEmojiReactId :: T.Text
-  , rMessageReply :: T.Text
-  } deriving (Generic, Show)
+type ParsedJSONKeywordResponse = (Text,(Text,Text,Text))
 
-instance A.FromJSON Response
+data SlashCommand = SlashCommand
+  { commandName :: Text
+  , commandRegistration :: Maybe CreateApplicationCommand
+  , commandHandler :: Interaction -> Maybe OptionsData -> DiscordHandler ()
+  }
+
+data KeywordResponse = KeywordResponse
+  { responseName :: Text
+  , responseKeyword :: Text
+  , responseHandler :: Message -> DiscordHandler()
+  }
 
 --
 -- Misc.
@@ -109,8 +118,31 @@ formatDiffTime time = show dayT ++ " " ++ plural dayT "day" ++ ", "
 -- JSON Parsing
 --
 
-parseResponses :: FilePath -> IO [Maybe Response]
-parseResponses path = do
-  contents <- BS.readFile path
-  let res = A.decodeStrict contents :: Maybe Response
-  return [res]
+responseFromJSONTemplate :: ParsedJSONKeywordResponse -> KeywordResponse
+responseFromJSONTemplate (name,(key,emoji,res)) = KeywordResponse
+  { responseName = name
+  , responseKeyword = key
+  , responseHandler = \mess -> do
+      void . restCall $
+        R.CreateReaction
+          (messageChannelId mess, messageId mess)
+          emoji
+
+      threadDelay (2 * 10^(5 :: Int))
+
+      void . restCall $
+        R.CreateMessage
+          (messageChannelId mess)
+          res
+  }
+
+parseJSONResponses :: FilePath -> IO [KeywordResponse]
+parseJSONResponses path = do
+  jsonData <- BS.readFile path
+  let decoded = A.decodeStrict jsonData :: Maybe [(Text, (Text,Text,Text))]
+  case decoded of
+    Nothing -> do
+      print $ "Error parsing the JSON Data in " ++ path ++ "."
+      return []
+    Just d  -> do
+      return $ map responseFromJSONTemplate d
