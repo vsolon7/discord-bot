@@ -6,22 +6,15 @@ module Main (main) where
 import Discord
 import Discord.Types
 import Discord.Interactions
-import UnliftIO (liftIO)
 import Data.List (find)
 import Control.Monad (forM_)
-import Utils (echo, showT, getToken, getGuildId)
-import Data.Text (Text)
-import Control.Monad (void)
-import Control.Monad.IO.Class (MonadIO)
+import Utils (startsWith, echo, showT, getToken, getGuildId)
 import qualified Discord.Requests as R
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
-import Data.Time (getCurrentTime)
+import qualified Data.Aeson as A
 import Commands
 
-
--- MAIN
-
+-- Main function.
+-- getToken and getGuildId are in Utils.hs
 main :: IO ()
 main = do
   tok <- getToken
@@ -30,8 +23,6 @@ main = do
   botTerminationError <- runDiscord $ def
     { discordToken = tok
     , discordOnEvent = onDiscordEvent guildId
-    -- If you are using application commands, you might not need
-    -- message contents at all
     , discordGatewayIntent = def { gatewayIntentMessageContent = True }
     }
 
@@ -43,9 +34,11 @@ onDiscordEvent :: GuildId -> Event -> DiscordHandler ()
 onDiscordEvent guildId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId guildId
   InteractionCreate intr                         -> onInteractionCreate intr
+  MessageCreate     mess                         -> onMessageCreate mess
   _                                              -> pure ()
 
 
+-- Registers the application commands defined in Commands.hs when the bot is ready.
 onReady :: ApplicationId -> GuildId -> DiscordHandler ()
 onReady appId guildId = do
   echo "Bot ready!"
@@ -62,10 +55,11 @@ onReady appId guildId = do
       unregisterOutdatedCmds cmds
 
   where
-  tryRegistering cmd = case registration cmd of
+  tryRegistering cmd = case commandRegistration cmd of
     Just reg -> restCall $ R.CreateGuildApplicationCommand appId guildId reg
     Nothing  -> pure . Left $ RestCallErrorCode 0 "" ""
 
+  -- Unregisters commands that existed on the last iteration of the bot, but no longer exist.
   unregisterOutdatedCmds validCmds = do
     registered <- restCall $ R.GetGuildApplicationCommands appId guildId
     case registered of
@@ -81,18 +75,30 @@ onReady appId guildId = do
               restCall . R.DeleteGuildApplicationCommand appId guildId
 
 -- see Commands.hs for mySlashCommands
+-- Only supports application commands currently. When someone uses an application command, the function tries to look
+-- it up in the list of the registered commands.
 onInteractionCreate :: Interaction -> DiscordHandler ()
 onInteractionCreate = \case
   cmd@InteractionApplicationCommand
     { applicationCommandData = input@ApplicationCommandDataChatInput {} } ->
       case
-        find (\c -> applicationCommandDataName input == name c) mySlashCommands
+        find (\c -> applicationCommandDataName input == commandName c) mySlashCommands
       of
         Just found ->
-          handler found cmd (optionsData input)
+          commandHandler found cmd (optionsData input)
 
         Nothing ->
           echo "Somehow got unknown slash command (registrations out of date?)"
-
   _ ->
     pure () -- Unexpected/unsupported interaction type
+
+-- TODO: myKeywordResponses should be read in from the .json file
+onMessageCreate :: Message -> DiscordHandler ()
+onMessageCreate mess = case
+  find (\res -> mess `startsWith` (responseKeyword res)) myKeywordResponses
+  of
+    Just found ->
+      responseHandler found mess
+    
+    Nothing -> pure ()
+----

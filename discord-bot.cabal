@@ -72,7 +72,9 @@ executable discord-bot
       discord-haskell ^>=1.18.0,
       unliftio ^>= 0.2.25.1,
       text ^>= 2.1.2,
-      time ^>= 1.14
+      time ^>= 1.14,
+      aeson ^>= 2.2.3.0,
+      bytestring ^>= 0.12.2.0
 
     -- Directories containing source files.
     hs-source-dirs:   app

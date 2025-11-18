@@ -1,8 +1,10 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Utils where
 
 import Data.Text (Text)
 import UnliftIO (liftIO)
 import qualified Data.Text as T
+import qualified Data.ByteString as BS
 import Control.Monad.IO.Class (MonadIO)
 import qualified Data.Text.IO as TIO
 import Discord
@@ -10,6 +12,17 @@ import qualified Discord.Requests as R
 import Discord.Types
 import Text.Read (readMaybe)
 import Data.Time.Clock (getCurrentTime, diffUTCTime, NominalDiffTime)
+import qualified Data.Aeson as A
+import GHC.Generics
+
+data Response = Response
+  { rName :: T.Text
+  , rKeyword :: T.Text
+  , rEmojiReactId :: T.Text
+  , rMessageReply :: T.Text
+  } deriving (Generic, Show)
+
+instance A.FromJSON Response
 
 --
 -- Misc.
@@ -21,7 +34,11 @@ echo = liftIO . TIO.putStrLn
 showT :: Show a => a -> Text
 showT = T.pack . show
 
+fromBot :: Message -> Bool
+fromBot = userIsBot . messageAuthor
 
+startsWith :: Message -> Text -> Bool
+startsWith mess t = t `T.isPrefixOf` (T.toLower . messageContent $ mess)
 --
 -- API related utilities
 --
@@ -88,3 +105,12 @@ formatDiffTime time = show dayT ++ " " ++ plural dayT "day" ++ ", "
     plural :: Int -> String -> String
     plural n str = if (n /= 1) then (str ++ "s") else str
 
+--
+-- JSON Parsing
+--
+
+parseResponses :: FilePath -> IO [Maybe Response]
+parseResponses path = do
+  contents <- BS.readFile path
+  let res = A.decodeStrict contents :: Maybe Response
+  return [res]
