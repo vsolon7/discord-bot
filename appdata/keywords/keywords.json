@@ -19,7 +19,15 @@
     "?universe destructinator", [
               "?universe destructinator", 
               "null",
-              "HEY WOAH MAN, DON'T SHOOT. I'm not bothering anybody. I only TURNED ON the universe destructinator -- I wasn't planning on actually activating it, that would be insane. We have to test these things, you know? No need to get so bothered about it.'"
+              "HEY WOAH MAN, DON'T SHOOT. I'm not bothering anybody. I only TURNED ON the universe destructinator -- I wasn't planning on actually activating it, that would be insane. We have to test these things, you know? No need to get so bothered about it."
+            ]
+  ],
+
+  [
+    "?deimos", [
+              "?deimos", 
+              "regional_indicator_d",
+              "deimos wanted this to be a command and he's very happy if you're reading this because that was his wish originally"
             ]
   ]
 ]
