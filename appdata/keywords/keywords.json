@@ -8,26 +8,26 @@
   ],
 
   [
-    "?monad", [
-              "?monad", 
-              "null",
-              "A monad is a non-physical, indestructible atom of nature (just read Leibniz)"
-            ]
-  ],
-
-  [
     "?universe destructinator", [
               "?universe destructinator", 
               "null",
-              "HEY WOAH MAN, DON'T SHOOT. I'm not bothering anybody. I only TURNED ON the universe destructinator -- I wasn't planning on actually activating it, that would be insane. We have to test these things, you know? No need to get so bothered about it."
+              "https://discord.com/channels/1330985639881216020/1331121319659569172/1398027628145020959"
             ]
   ],
 
   [
     "?deimos", [
               "?deimos", 
-              "regional_indicator_d",
+              "null",
               "deimos wanted this to be a command and he's very happy if you're reading this because that was his wish originally"
+            ]
+  ],
+
+  [
+    "?cale's number", [
+              "?cale's number", 
+              "null",
+              "Let a_k be the sequence defined by a_k = 1 if k is an encoding of a proof a contradiction from the ZFC axioms and a_k = 0 otherwise, and define x := sum\\_{k=1}^n a_k / 2^k.\n\nThe number x is a computable real number, as we can enumerate all possible proofs in ZFC. If ZFC proves that x > 0, then ZFC is inconsistent. If ZFC proves that x = 0, then ZFC has proven its own consistency, hence is inconsistent by Gödel's second incompleteness theorem."
             ]
   ]
 ]

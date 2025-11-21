@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Utils where
 
 import Data.Text (Text)
@@ -30,8 +32,11 @@ data SlashCommand = SlashCommand
 data KeywordResponse = KeywordResponse
   { responseName :: Text
   , responseKeyword :: Text
-  , responseHandler :: Message -> DiscordHandler()
+  , responseHandler :: Message -> DiscordHandler ()
   }
+
+_KEYWORD_RESPONSE_FILE_PATH = "appdata/keywords/keywords.json"
+_ARGTIMER_FILEPATH = "appdata/savedtime"
 
 --
 -- Misc.
@@ -48,6 +53,7 @@ fromBot = userIsBot . messageAuthor
 
 startsWith :: Message -> Text -> Bool
 startsWith mess t = t `T.isPrefixOf` (T.toLower . messageContent $ mess)
+
 --
 -- API related utilities
 --
@@ -97,7 +103,7 @@ formatDiffTime :: NominalDiffTime -> String
 formatDiffTime time = show dayT ++ " " ++ plural dayT "day" ++ ", "
                    ++ show hourT ++ " " ++ plural hourT "hour" ++ ", "
                    ++ show minT ++ " " ++ plural minT "minute" ++ ", "
-                   ++ show secT ++ " " ++ plural secT "second"
+                   ++ show secT ++ " " ++ plural secT "second" ++ "."
   where
     secT = splitTime !! 0
     minT = splitTime !! 1
@@ -106,10 +112,14 @@ formatDiffTime time = show dayT ++ " " ++ plural dayT "day" ++ ", "
     splitTime = splitSecs intTime
     (intTime, _) = properFraction time
 
+    --86400 seconds in an hour, 3600 seconds in a minute, etc.
     splitSecs n = go divMod n [86400, 3600, 60, 1] []
       where
+        --given a function f :: a -> a' -> (b,a), a starting input x :: a, and a list of secondary inputs ys :: [a'],
+        --repeatedly feed in the second output of f into f _ y again and keeps a list of the first outputs
+        --obtained from this process.
         go f x [] rs = rs
-        go f x (y:ys) rs = go f (snd . f x $ y) ys ((fst . f x $ y):rs)
+        go f x (y:ys) rs = go f (snd $ f x y) ys ((fst $ f x y):rs)
 
     plural :: Int -> String -> String
     plural n str = if (n /= 1) then (str ++ "s") else str
@@ -123,12 +133,14 @@ responseFromJSONTemplate (name,(key,emoji,res)) = KeywordResponse
   { responseName = name
   , responseKeyword = key
   , responseHandler = \mess -> do
-      void . restCall $
-        R.CreateReaction
-          (messageChannelId mess, messageId mess)
-          emoji
-
-      threadDelay (2 * 10^(5 :: Int))
+      case emoji of
+        "null" -> pure ()
+        _      -> do
+          void . restCall $
+            R.CreateReaction
+              (messageChannelId mess, messageId mess)
+               emoji
+          threadDelay (10^(5 :: Int))
 
       void . restCall $
         R.CreateMessage

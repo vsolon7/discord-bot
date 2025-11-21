@@ -7,6 +7,7 @@ import Discord
 import Discord.Types
 import Discord.Interactions
 import Data.List (find)
+import UnliftIO (liftIO)
 import Control.Monad (forM_)
 import Utils (startsWith, echo, showT, getToken, getGuildId, parseJSONResponses)
 import qualified Discord.Requests as R
@@ -14,7 +15,6 @@ import qualified Data.Aeson as A
 import Commands
 import Utils
 
-_KEYWORD_RESPONSE_FILE_PATH = "appdata/keywords/keywords.json"
 
 -- Main function.
 -- getToken and getGuildId are in Utils.hs
@@ -88,7 +88,7 @@ onInteractionCreate = \case
       case
         find (\c -> applicationCommandDataName input == commandName c) mySlashCommands
       of
-        Just found ->
+        Just found -> do
           commandHandler found cmd (optionsData input)
 
         Nothing ->
@@ -96,13 +96,12 @@ onInteractionCreate = \case
   _ ->
     pure () -- Unexpected/unsupported interaction type
 
--- TODO: myKeywordResponses should be read in from the .json file
 onMessageCreate :: [KeywordResponse] -> Message -> DiscordHandler ()
 onMessageCreate resList mess = case
   find (\res -> mess `startsWith` (responseKeyword res)) resList
   of
     Just found ->
-      responseHandler found mess
+      if (not . fromBot $ mess) then responseHandler found mess else pure ()
     
     Nothing -> pure ()
---------
+------
