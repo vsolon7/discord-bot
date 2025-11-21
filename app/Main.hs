@@ -97,11 +97,14 @@ onInteractionCreate = \case
     pure () -- Unexpected/unsupported interaction type
 
 onMessageCreate :: [KeywordResponse] -> Message -> DiscordHandler ()
-onMessageCreate resList mess = case
-  find (\res -> mess `startsWith` (responseKeyword res)) resList
-  of
-    Just found ->
-      if (not . fromBot $ mess) then responseHandler found mess else pure ()
+onMessageCreate resList mess = case (fromBot mess) of
+  True -> pure ()
+  _    ->
+    case
+      find (\res -> mess `startsWith` (responseKeyword res)) resList
+    of
+      Just found ->
+        if (not . fromBot $ mess) then responseHandler found mess else pure ()
     
-    Nothing -> pure ()
+      _          -> pure ()
 ------

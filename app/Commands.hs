@@ -88,16 +88,25 @@ test = SlashCommand
        , commandHandler = \intr _options -> do
            case (interactionChannelId intr) of
              Just icid -> do
-               res <- restCall $
-                 R.CreateMessageDetailed
-                   icid
-                   opts
-               liftIO . print $ res
+               result <- restCall $
+                 R.CreateInteractionResponse
+                   (interactionId intr)
+                   (interactionToken intr)
+                   response
+               liftIO . print $ result
              _         -> do
                liftIO . print $ "error getting interactionChannelId for interaction " ++ (show $ interactionId intr)
        }
   where
-    opts = R.MessageDetailedOpts "test1" False Nothing Nothing Nothing Nothing (Just [actionRow]) Nothing
+    response = InteractionResponseChannelMessage
+                 (InteractionResponseMessage
+                   (Just False)
+                   (Just "test")
+                   Nothing
+                   Nothing
+                   Nothing
+                   (Just [actionRow])
+                   Nothing)
     actionRow = ActionRowButtons [b1,b2,b3]
     b1 = Button "b1" False ButtonStylePrimary (Just "BUTTON1") Nothing
     b2 = Button "b2" True ButtonStyleDanger (Just "BUTTON2") Nothing
