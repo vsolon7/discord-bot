@@ -141,11 +141,13 @@ responseFromJSONTemplate (name,(key,emoji,res)) = KeywordResponse
               (messageChannelId mess, messageId mess)
                emoji
           threadDelay (10^(5 :: Int))
-
-      void . restCall $
-        R.CreateMessage
-          (messageChannelId mess)
-          res
+      case res of
+        "null" -> pure ()
+        _      -> do
+          void . restCall $
+            R.CreateMessage
+              (messageChannelId mess)
+              res
   }
 
 parseJSONResponses :: FilePath -> IO [KeywordResponse]
