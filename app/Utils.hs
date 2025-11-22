@@ -103,7 +103,7 @@ formatDiffTime :: NominalDiffTime -> String
 formatDiffTime time = show dayT ++ " " ++ plural dayT "day" ++ ", "
                    ++ show hourT ++ " " ++ plural hourT "hour" ++ ", "
                    ++ show minT ++ " " ++ plural minT "minute" ++ ", "
-                   ++ show secT ++ " " ++ plural secT "second" ++ "."
+                   ++ show secT ++ " " ++ plural secT "second"
   where
     secT = splitTime !! 0
     minT = splitTime !! 1

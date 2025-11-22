@@ -72,14 +72,14 @@ viewArgCounter = basicSlashCommand
   where
     timeDiffIO = do
       timeDiff <- getTimeDiff _ARGTIMER_FILEPATH
-      return $ "Time since the last autistic argument: " <> (T.pack $ formatDiffTime timeDiff) <> "."
+      return $ "Time since the last autistic argument: " <> (T.pack $ formatDiffTime timeDiff) <> "..."
 
 
 printGiantGlorp :: SlashCommand
 printGiantGlorp = basicSlashCommand
                     ("giantglorp")
                     ("Prints a giant glorp.")
-                    (return . T.pack $ giantGlorp)
+                    (return . T.pack $ ".\n" ++ giantGlorp)
 
 test :: SlashCommand
 test = SlashCommand

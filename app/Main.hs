@@ -106,4 +106,4 @@ onMessageCreate resList mess = case (fromBot mess) of
       Just found ->
         responseHandler found mess
       _          -> pure ()
-------
+-------
