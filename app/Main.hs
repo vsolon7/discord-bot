@@ -104,7 +104,6 @@ onMessageCreate resList mess = case (fromBot mess) of
       find (\res -> mess `startsWith` (responseKeyword res)) resList
     of
       Just found ->
-        if (not . fromBot $ mess) then responseHandler found mess else pure ()
-    
+        responseHandler found mess
       _          -> pure ()
 ------
