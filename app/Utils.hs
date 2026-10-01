@@ -2,6 +2,7 @@
 
 module Utils where
 
+import Data.List (mapAccumL)
 import Data.Text (Text)
 import UnliftIO (liftIO)
 import qualified Data.Text as T
@@ -65,15 +66,15 @@ getGuildId :: IO GuildId
 getGuildId = do
   gids <- readFile "../discord-bot-apidata/guildid"
   case readMaybe gids of
-    Just g -> pure g
-    Nothing -> error "could not read guild id from `apidata/guildid`"
+    Just g -> return g
+    Nothing -> error "Could not read guild id from `apidata/guildid`"
 
 -- | Given the test server and an action operating on a channel id, get the
 -- first text channel of that server and use the action on that channel.
 actionWithChannelId :: GuildId -> (ChannelId -> DiscordHandler a) -> DiscordHandler a
-actionWithChannelId testserverid f = do
-  Right chans <- restCall $ R.GetGuildChannels testserverid
-  (f . channelId) (head (filter isTextChannel chans))
+actionWithChannelId serverid f = do
+  Right chans <- restCall $ R.GetGuildChannels serverid
+  (f . channelId) (head $ filter isTextChannel chans)
   where
     isTextChannel :: Channel -> Bool
     isTextChannel ChannelText {} = True
@@ -86,7 +87,7 @@ actionWithChannelId testserverid f = do
 getSavedTime :: FilePath -> IO UTCTime
 getSavedTime path = do
   time <- TIO.readFile path
-  return . read . T.unpack $ time
+  return (read . T.unpack $ time)
 
 getTimeDiff :: FilePath -> IO NominalDiffTime
 getTimeDiff path = do
@@ -100,29 +101,16 @@ setSavedTime path time = do
   TIO.writeFile path (showT time)
 
 formatDiffTime :: NominalDiffTime -> String
-formatDiffTime time = show dayT ++ " " ++ plural dayT "day" ++ ", "
-                   ++ show hourT ++ " " ++ plural hourT "hour" ++ ", "
-                   ++ show minT ++ " " ++ plural minT "minute" ++ ", "
-                   ++ show secT ++ " " ++ plural secT "second"
+formatDiffTime time = show days ++ " " ++ plural days "day" ++ ", "
+                   ++ show hours ++ " " ++ plural hours "hour" ++ ", "
+                   ++ show hours ++ " " ++ plural minutes "minute" ++ ", "
+                   ++ show hours ++ " " ++ plural seconds "second"
   where
-    secT = splitTime !! 0
-    minT = splitTime !! 1
-    hourT = splitTime !! 2
-    dayT = splitTime !! 3
-    splitTime = splitSecs intTime
     (intTime, _) = properFraction time
-
-    --86400 seconds in an hour, 3600 seconds in a minute, etc.
-    splitSecs n = go divMod n [86400, 3600, 60, 1] []
-      where
-        --given a function f :: a -> a' -> (b,a), a starting input x :: a, and a list of secondary inputs ys :: [a'],
-        --repeatedly feed in the second output of f into f _ y again and keeps a list of the first outputs
-        --obtained from this process.
-        go f x [] rs = rs
-        go f x (y:ys) rs = go f (snd $ f x y) ys ((fst $ f x y):rs)
+    (days, [seconds, minutes, hours]) = mapAccumL divMod intTime [60, 60, 24]
 
     plural :: Int -> String -> String
-    plural n str = if (n /= 1) then (str ++ "s") else str
+    plural n str = if n /= 1 then str ++ "s" else str
 
 --
 -- JSON Parsing
@@ -134,15 +122,15 @@ responseFromJSONTemplate (name,(key,emoji,res)) = KeywordResponse
   , responseKeyword = key
   , responseHandler = \mess -> do
       case emoji of
-        "null" -> pure ()
+        "null" -> return ()
         _      -> do
           void . restCall $
             R.CreateReaction
               (messageChannelId mess, messageId mess)
                emoji
-          threadDelay (10^(5 :: Int))
+          threadDelay 100000
       case res of
-        "null" -> pure ()
+        "null" -> return ()
         _      -> do
           void . restCall $
             R.CreateMessage
@@ -153,7 +141,7 @@ responseFromJSONTemplate (name,(key,emoji,res)) = KeywordResponse
 parseJSONResponses :: FilePath -> IO [KeywordResponse]
 parseJSONResponses path = do
   jsonData <- BS.readFile path
-  let decoded = A.decodeStrict jsonData :: Maybe [(Text, (Text,Text,Text))]
+  let decoded = A.decodeStrict jsonData :: Maybe [(Text, (Text, Text, Text))]
   case decoded of
     Nothing -> do
       print $ "Error parsing the JSON Data in " ++ path ++ "."

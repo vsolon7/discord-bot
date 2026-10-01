@@ -1,8 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-
 module Main (main) where
-
 import Discord
 import Discord.Types
 import Discord.Interactions
@@ -39,8 +37,7 @@ onDiscordEvent resList guildId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId guildId
   InteractionCreate intr                         -> onInteractionCreate intr
   MessageCreate     mess                         -> onMessageCreate resList mess
-  _                                              -> pure ()
-
+  _                                              -> return ()
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
 onReady :: ApplicationId -> GuildId -> DiscordHandler ()
@@ -61,7 +58,7 @@ onReady appId guildId = do
   where
   tryRegistering cmd = case commandRegistration cmd of
     Just reg -> restCall $ R.CreateGuildApplicationCommand appId guildId reg
-    Nothing  -> pure . Left $ RestCallErrorCode 0 "" ""
+    Nothing  -> return . Left $ RestCallErrorCode 0 "" ""
 
   -- Unregisters commands that existed on the last iteration of the bot, but no longer exist.
   unregisterOutdatedCmds validCmds = do
@@ -94,16 +91,15 @@ onInteractionCreate = \case
         Nothing ->
           echo "Somehow got unknown slash command (registrations out of date?)"
   _ ->
-    pure () -- Unexpected/unsupported interaction type
+    return () -- Unexpected/unsupported interaction type
 
 onMessageCreate :: [KeywordResponse] -> Message -> DiscordHandler ()
 onMessageCreate resList mess = case (fromBot mess) of
-  True -> pure ()
+  True -> return ()
   _    ->
     case
       find (\res -> mess `startsWith` (responseKeyword res)) resList
     of
       Just found ->
         responseHandler found mess
-      _          -> pure ()
--------
+      _          -> return ()
