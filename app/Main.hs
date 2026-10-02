@@ -46,7 +46,7 @@ onReady :: ApplicationId -> GuildId -> DiscordHandler ()
 onReady appId gId = do
   echo "Bot ready!"
   
-  -- mySlashCommands comes from Commands.hs
+  -- mySlashCommands comes from SlashCommands.hs
   appCmdRegistrations <- mapM tryRegistering mySlashCommands
 
   case sequence appCmdRegistrations of
@@ -77,8 +77,7 @@ onReady appId gId = do
          in forM_ outdatedIds $
               restCall . R.DeleteGuildApplicationCommand appId gId
 
--- see Commands.hs for mySlashCommands
--- Only supports application commands currently. When someone uses an application command, the function tries to look
+-- | Only supports application commands currently. When someone uses an application command, the function tries to look
 -- it up in the list of the registered commands.
 onInteractionCreate :: Interaction -> DiscordHandler ()
 onInteractionCreate = \case

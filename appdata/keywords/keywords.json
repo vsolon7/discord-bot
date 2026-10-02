@@ -2,14 +2,14 @@
   {
     "responseName": "test",
     "responseKeyword": "test", 
-    "responseEmoji": "eyes",
+    "responseEmoji": "👀",
     "responseOutput": "I have read the message."
   },
 
   {
     "responseName": "Universe Destructinator",
     "responseKeyword": "?universe destructinator", 
-    "responseEmoji": "null",
+    "responseEmoji": "universedestructinator:1548415323877810337",
     "responseOutput": "https://discord.com/channels/1330985639881216020/1331121319659569172/1398027628145020959"
   },
 
