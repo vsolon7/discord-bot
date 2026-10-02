@@ -15,29 +15,16 @@ import qualified Data.Attoparsec.ByteString as AT
 import Control.Monad.IO.Class (MonadIO)
 import UnliftIO (liftIO)
 import UnliftIO.Concurrent
-import Control.Monad (void)
 import Discord
 import Discord.Types
 import Discord.Interactions
 import Text.Read (readMaybe)
 import Data.Time.Clock (getCurrentTime, diffUTCTime, NominalDiffTime)
+import GHC.Generics
 
-type ParsedJSONKeywordResponse = (Text,(Text,Text,Text))
-
-data SlashCommand = SlashCommand
-  { commandName :: Text
-  , commandRegistration :: Maybe CreateApplicationCommand
-  , commandHandler :: Interaction -> Maybe OptionsData -> DiscordHandler ()
-  }
-
-data KeywordResponse = KeywordResponse
-  { responseName :: Text
-  , responseKeyword :: Text
-  , responseHandler :: Message -> DiscordHandler ()
-  }
-
-_KEYWORD_RESPONSE_FILE_PATH = "appdata/keywords/keywords.json"
+_KEYWORD_RESPONSE_FILEPATH = "appdata/keywords/keywords.json"
 _ARGTIMER_FILEPATH = "appdata/savedtime"
+_PREDICTIONS_FILEPATH = "appdata/wagers/predictions.json"
 
 --
 -- Misc.
@@ -81,70 +68,15 @@ actionWithChannelId serverid f = do
     isTextChannel _ = False
 
 --
--- File Reading Utilities
---
-
-getSavedTime :: FilePath -> IO UTCTime
-getSavedTime path = do
-  time <- TIO.readFile path
-  return (read . T.unpack $ time)
-
-getTimeDiff :: FilePath -> IO NominalDiffTime
-getTimeDiff path = do
-  prevTime <- TIO.readFile path
-  let prevTime1 = read . T.unpack $ prevTime
-  currTime <- getCurrentTime
-  return $ diffUTCTime currTime prevTime1
-
-setSavedTime :: FilePath -> UTCTime -> IO ()
-setSavedTime path time = do
-  TIO.writeFile path (showT time)
-
-formatDiffTime :: NominalDiffTime -> String
-formatDiffTime time = show days ++ " " ++ plural days "day" ++ ", "
-                   ++ show hours ++ " " ++ plural hours "hour" ++ ", "
-                   ++ show hours ++ " " ++ plural minutes "minute" ++ ", "
-                   ++ show hours ++ " " ++ plural seconds "second"
-  where
-    (intTime, _) = properFraction time
-    (days, [seconds, minutes, hours]) = mapAccumL divMod intTime [60, 60, 24]
-
-    plural :: Int -> String -> String
-    plural n str = if n /= 1 then str ++ "s" else str
-
---
 -- JSON Parsing
 --
 
-responseFromJSONTemplate :: ParsedJSONKeywordResponse -> KeywordResponse
-responseFromJSONTemplate (name,(key,emoji,res)) = KeywordResponse
-  { responseName = name
-  , responseKeyword = key
-  , responseHandler = \mess -> do
-      case emoji of
-        "null" -> return ()
-        _      -> do
-          void . restCall $
-            R.CreateReaction
-              (messageChannelId mess, messageId mess)
-               emoji
-          threadDelay 100000
-      case res of
-        "null" -> return ()
-        _      -> do
-          void . restCall $
-            R.CreateMessage
-              (messageChannelId mess)
-              res
-  }
-
-parseJSONResponses :: FilePath -> IO [KeywordResponse]
-parseJSONResponses path = do
+parseJSON :: FromJSON a => FilePath -> IO (Maybe a)
+parseJSON path = do
   jsonData <- BS.readFile path
-  let decoded = A.decodeStrict jsonData :: Maybe [(Text, (Text, Text, Text))]
+  let decoded = A.decodeStrict jsonData
   case decoded of
     Nothing -> do
-      print $ "Error parsing the JSON Data in " ++ path ++ "."
-      return []
-    Just d  -> do
-      return $ map responseFromJSONTemplate d
+      echo $ "Error parsing the JSON Data in " <> T.pack path <> "."
+      return Nothing
+    Just d  -> return (Just d)

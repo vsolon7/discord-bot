@@ -5,12 +5,11 @@ import Discord
 import Discord.Types
 import Discord.Interactions
 import Data.List (find)
-import UnliftIO (liftIO)
 import Control.Monad (forM_)
-import Utils (startsWith, echo, showT, getToken, getGuildId, parseJSONResponses)
+import Utils ()
 import qualified Discord.Requests as R
-import qualified Data.Aeson as A
-import Commands
+import SlashCommands
+import Responses
 import Utils
 
 
@@ -19,12 +18,15 @@ import Utils
 main :: IO ()
 main = do
   tok <- getToken
-  guildId <- getGuildId
-  keyResJSONData <- parseJSONResponses _KEYWORD_RESPONSE_FILE_PATH
+  gId <- getGuildId
+  keywordResponseData <- parseJSON _KEYWORD_RESPONSE_FILEPATH :: IO (Maybe [KeywordResponseData])
+  let keywordResponses = case keywordResponseData of
+        Nothing  -> []
+        Just res -> map createKeywordResponse res
 
   botTerminationError <- runDiscord $ def
     { discordToken = tok
-    , discordOnEvent = onDiscordEvent keyResJSONData guildId
+    , discordOnEvent = onDiscordEvent keywordResponses gId
     , discordGatewayIntent = def { gatewayIntentMessageContent = True }
     }
 
@@ -33,15 +35,15 @@ main = do
 -- EVENTS
 
 onDiscordEvent :: [KeywordResponse] -> GuildId -> Event -> DiscordHandler ()
-onDiscordEvent resList guildId = \case
-  Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId guildId
+onDiscordEvent resList gId = \case
+  Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId gId
   InteractionCreate intr                         -> onInteractionCreate intr
   MessageCreate     mess                         -> onMessageCreate resList mess
   _                                              -> return ()
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
 onReady :: ApplicationId -> GuildId -> DiscordHandler ()
-onReady appId guildId = do
+onReady appId gId = do
   echo "Bot ready!"
   
   -- mySlashCommands comes from Commands.hs
@@ -57,12 +59,12 @@ onReady appId guildId = do
 
   where
   tryRegistering cmd = case commandRegistration cmd of
-    Just reg -> restCall $ R.CreateGuildApplicationCommand appId guildId reg
+    Just reg -> restCall $ R.CreateGuildApplicationCommand appId gId reg
     Nothing  -> return . Left $ RestCallErrorCode 0 "" ""
 
   -- Unregisters commands that existed on the last iteration of the bot, but no longer exist.
   unregisterOutdatedCmds validCmds = do
-    registered <- restCall $ R.GetGuildApplicationCommands appId guildId
+    registered <- restCall $ R.GetGuildApplicationCommands appId gId
     case registered of
       Left err ->
         echo $ "Failed to get registered slash commands: " <> showT err
@@ -73,7 +75,7 @@ onReady appId guildId = do
                         . map applicationCommandId
                         $ cmds
          in forM_ outdatedIds $
-              restCall . R.DeleteGuildApplicationCommand appId guildId
+              restCall . R.DeleteGuildApplicationCommand appId gId
 
 -- see Commands.hs for mySlashCommands
 -- Only supports application commands currently. When someone uses an application command, the function tries to look
@@ -98,7 +100,7 @@ onMessageCreate resList mess = case (fromBot mess) of
   True -> return ()
   _    ->
     case
-      find (\res -> mess `startsWith` (responseKeyword res)) resList
+      find (\res -> mess `startsWith` (responseKeyword . responseData $ res)) resList
     of
       Just found ->
         responseHandler found mess
