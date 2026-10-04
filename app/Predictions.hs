@@ -5,7 +5,7 @@ module Predictions where
 import Discord.Types
 import Discord.Internal.Types.Interactions
 import Text.Read (readMaybe)
-import Utils (extractStringOption, showT)
+import Utils (extractStringOption, extractIntegerOption, showT)
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQL
 import Data.Time.Format (defaultTimeLocale, parseTimeMultipleM, parseTimeM)
@@ -21,6 +21,7 @@ type Username = T.Text
 -- sends it to the bot
 data PredictionCommandData = PredictionCommandData
   { predictionContent :: T.Text
+  , predictionConfidence :: Maybe Integer
   , predictionMadeDate :: UTCTime
   , predictionDueDate :: UTCTime
   , predictionUserId :: UserId
@@ -38,6 +39,7 @@ data PredictionData = PredictionData
 instance SQL.ToRow PredictionData where
   toRow (PredictionData pcd pmid) =
     [ SQL.SQLText (predictionContent pcd)
+    , fromMaybe SQL.SQLNull (fmap (SQL.SQLInteger . fromInteger) (predictionConfidence pcd))
     , SQL.SQLText (showT . predictionMadeDate $ pcd)
     , SQL.SQLText (showT . predictionDueDate $ pcd)
     , SQL.SQLText (showT . predictionUserId $ pcd)
@@ -54,16 +56,17 @@ maybeToEither _ (Just x) = Right x
 initDb :: SQL.Connection -> IO ()
 initDb conn = SQL.execute_ conn
   "CREATE TABLE IF NOT EXISTS predictions(\
-  \  id           INTEGER PRIMARY KEY,\
-  \  content      TEXT NOT NULL,\
-  \  created_at   TEXT NOT NULL,\
-  \  due_at       TEXT NOT NULL,\
-  \  user_id      TEXT NOT NULL,\
-  \  user_name    TEXT NOT NULL,\
-  \  guild_id     TEXT NOT NULL,\
-  \  channel_id   TEXT NOT NULL,\
-  \  reply_mid    TEXT NOT NULL,\
-  \  notified     INTEGER NOT NULL DEFAULT 0) STRICT"
+  \  id             INTEGER PRIMARY KEY,\
+  \  content        TEXT NOT NULL,\
+  \  confidence     INTEGER,\
+  \  created_at     TEXT NOT NULL,\
+  \  due_at         TEXT NOT NULL,\
+  \  user_id        TEXT NOT NULL,\
+  \  user_name      TEXT NOT NULL,\
+  \  guild_id       TEXT NOT NULL,\
+  \  channel_id     TEXT NOT NULL,\
+  \  reply_mess_id  TEXT NOT NULL,\
+  \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
 
 getUserData :: MemberOrUser -> Maybe (UserId, Username)
 getUserData (
@@ -106,6 +109,7 @@ parsePredictionCommand :: UTCTime -> Interaction -> Either T.Text PredictionComm
 parsePredictionCommand currTime (cmd@InteractionApplicationCommand { applicationCommandData = input@ApplicationCommandDataChatInput {} }) =
   do
     dataValues <- maybeToEither "Could not access the command's option fields." (optionsData input)
+    let confidence = extractIntegerOption "confidence" dataValues
     predText <- maybeToEither "Could not access prediction field." . extractStringOption "prediction" $ dataValues
     dueDateText <- maybeToEither "Could not access date field." . extractStringOption "date" $ dataValues
     gid <- maybeToEither "Error accessing Guild ID. Note that this command can only be used in a server." (interactionGuildId cmd)
@@ -121,6 +125,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
     return $
       PredictionCommandData
         { predictionContent = predText
+        , predictionConfidence = confidence
         , predictionMadeDate = currTime
         , predictionDueDate = dueDateUTC
         , predictionUserId = uid
@@ -133,4 +138,4 @@ parsePredictionCommand _ _ = Left "Tried to parse a non-prediction slash command
 
 savePrediction :: SQL.Connection -> PredictionData -> IO ()
 savePrediction conn p = do
-  SQL.execute conn "INSERT INTO predictions (content, created_at, due_at, user_id, user_name, guild_id, channel_id, reply_mid) VALUES (?,?,?,?,?,?,?,?)" p
+  SQL.execute conn "INSERT INTO predictions (content, confidence, created_at, due_at, user_id, user_name, guild_id, channel_id, reply_mess_id) VALUES (?,?,?,?,?,?,?,?,?)" p

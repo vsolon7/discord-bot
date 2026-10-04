@@ -129,15 +129,18 @@ addPrediction = SlashCommand
                 _        -> "TIMESTAMP FORMATTING ERROR"
               dueDateTimeStampRel = "<t:" <> dueDateUTC <> ":R>"
               dueDateTimeStampAbs = "<t:" <> dueDateUTC <> ":f>"
+              responseStart = case predictionConfidence p of
+                Nothing -> "They claim"
+                Just c  -> "They are " <> showT c <> "%" <> " confident"
               response =
                 userPing <> " has made a prediction!\n" <>
-                "They claim that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
+                responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
                 ", the following will occur:\n" <>
                 predictionContent p <> "."
             in
               return response
           else
-            return "You must predict a future event!"
+            return "You can only predict events in the future!"
         Left err -> return err
 
       void . restCall $
@@ -168,16 +171,40 @@ addPrediction = SlashCommand
           "predict"
           Nothing
           "Predict the future!"
-          Nothing
-          (
+          Nothing (
             Just (
               OptionsValues
                 [
-                  OptionValueString "prediction" Nothing "What you are predicting will happen" Nothing True (Left False) (Just 1) Nothing,
-                  OptionValueString "date" Nothing "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\"" Nothing True (Left False) (Just 1) Nothing
+                  OptionValueString
+                    "prediction"
+                    Nothing
+                    "What you are predicting will happen"
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueString
+                    "date"
+                    Nothing
+                    "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\""
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueInteger
+                    "confidence"
+                    Nothing
+                    "(Optional) Prediction confidence"
+                    Nothing
+                    False
+                    (Left False)
+                    (Just 1)
+                    (Just 100)
                 ]
+              )
             )
-          )
           Nothing
           (Just False)
 

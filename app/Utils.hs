@@ -74,6 +74,13 @@ extractStringOption optionName (OptionsDataValues vs) =
     (v:_) -> Just v
     _     -> Nothing
 
+extractIntegerOption :: T.Text -> OptionsData -> Maybe Integer
+extractIntegerOption _ (OptionsDataSubcommands _) = Nothing
+extractIntegerOption optionName (OptionsDataValues vs) =
+  case [v | OptionDataValueInteger n (Right v) <- vs, n == optionName] of
+    (v:_) -> Just v
+    _     -> Nothing
+
 --
 -- JSON Parsing
 --
