@@ -174,7 +174,7 @@ addPrediction = SlashCommand
               OptionsValues
                 [
                   OptionValueString "prediction" Nothing "What you are predicting will happen" Nothing True (Left False) (Just 1) Nothing,
-                  OptionValueString "date" Nothing "When you predict it will happen" Nothing True (Left False) (Just 1) Nothing
+                  OptionValueString "date" Nothing "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\"" Nothing True (Left False) (Just 1) Nothing
                 ]
             )
           )
