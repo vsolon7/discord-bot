@@ -11,22 +11,27 @@ import qualified Discord.Requests as R
 import SlashCommands
 import Responses
 import Utils
+import qualified Database.SQLite.Simple as SQL
+import Predictions (initDb)
 
-
--- Main function.
--- getToken and getGuildId are in Utils.hs
 main :: IO ()
 main = do
-  tok <- getToken
-  gId <- getGuildId
+  tok <- getToken -- see Utils.hs
+  gId <- getGuildId  -- see Utils.hs
   keywordResponseData <- parseJSON _KEYWORD_RESPONSE_FILEPATH :: IO (Maybe [KeywordResponseData])
   let keywordResponses = case keywordResponseData of
         Nothing  -> []
         Just res -> map createKeywordResponse res
 
+  dbConn <- SQL.open "appdata/database/data.db"
+  initDb dbConn
+
   botTerminationError <- runDiscord $ def
     { discordToken = tok
-    , discordOnEvent = onDiscordEvent keywordResponses gId
+    , discordOnEvent = onDiscordEvent dbConn keywordResponses gId
+    , discordOnEnd = do
+        echo "Bot has disconnected. Cleaning up..."
+        SQL.close dbConn
     , discordGatewayIntent = def { gatewayIntentMessageContent = True }
     }
 
@@ -34,10 +39,10 @@ main = do
 
 -- EVENTS
 
-onDiscordEvent :: [KeywordResponse] -> GuildId -> Event -> DiscordHandler ()
-onDiscordEvent resList gId = \case
+onDiscordEvent :: SQL.Connection -> [KeywordResponse] -> GuildId -> Event -> DiscordHandler ()
+onDiscordEvent conn resList gId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId gId
-  InteractionCreate intr                         -> onInteractionCreate intr
+  InteractionCreate intr                         -> onInteractionCreate conn intr
   MessageCreate     mess                         -> onMessageCreate resList mess
   _                                              -> return ()
 
@@ -51,7 +56,7 @@ onReady appId gId = do
 
   case sequence appCmdRegistrations of
     Left err ->
-      echo $ "[!] Failed to register some commands" <> showT err
+      echo $ "Failed to register some commands" <> showT err
 
     Right cmds -> do
       echo $ "Registered " <> showT (length cmds) <> " command(s)."
@@ -79,15 +84,15 @@ onReady appId gId = do
 
 -- | Only supports application commands currently. When someone uses an application command, the function tries to look
 -- it up in the list of the registered commands.
-onInteractionCreate :: Interaction -> DiscordHandler ()
-onInteractionCreate = \case
+onInteractionCreate :: SQL.Connection -> Interaction -> DiscordHandler ()
+onInteractionCreate conn = \case
   cmd@InteractionApplicationCommand
     { applicationCommandData = input@ApplicationCommandDataChatInput {} } ->
       case
         find (\c -> applicationCommandDataName input == commandName c) mySlashCommands
       of
         Just found -> do
-          commandHandler found cmd (optionsData input)
+          commandHandler found conn cmd (optionsData input)
 
         Nothing ->
           echo "Somehow got unknown slash command (registrations out of date?)"

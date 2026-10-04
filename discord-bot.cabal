@@ -80,7 +80,8 @@ executable discord-bot
       time ^>= 1.14,
       aeson ^>= 2.2.3.0,
       bytestring ^>= 0.12.2.0,
-      attoparsec ^>= 0.14.4
+      attoparsec ^>= 0.14.4,
+      sqlite-simple ^>= 0.4.19.0
 
     -- Directories containing source files.
     hs-source-dirs:   app

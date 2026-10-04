@@ -67,6 +67,13 @@ actionWithChannelId serverid f = do
     isTextChannel ChannelText {} = True
     isTextChannel _ = False
 
+extractStringOption :: T.Text -> OptionsData -> Maybe T.Text
+extractStringOption _ (OptionsDataSubcommands _) = Nothing
+extractStringOption optionName (OptionsDataValues vs) =
+  case [v | OptionDataValueString n (Right v) <- vs, n == optionName] of
+    (v:_) -> Just v
+    _     -> Nothing
+
 --
 -- JSON Parsing
 --

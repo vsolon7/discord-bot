@@ -4,36 +4,26 @@ module SlashCommands where
 
 import Discord
 import Discord.Interactions
-import Discord.Internal.Types.Components
-import Discord.Types (messageChannelId, messageId, Message)
 import UnliftIO (liftIO)
-import UnliftIO.Concurrent
 import Data.Text (Text)
 import Control.Monad (void)
+import Control.Concurrent (forkIO)
 import qualified Discord.Requests as R
 import qualified Data.Text as T
-import qualified Data.Aeson as AE
-import Data.Time (getCurrentTime, UTCTime)
+import qualified Database.SQLite.Simple as SQL
+import Data.Time (getCurrentTime)
 import Utils
-import Data.Either (fromRight)
 import ArgumentTimer (setSavedTime, getTimeDiff, formatDiffTime)
-import GHC.Generics (Generic)
-
-data PredictionData = PredictionData
-  { predictionContent :: Text
-  , predictionDate :: UTCTime
-  } deriving (Generic, Show)
-
-instance AE.FromJSON PredictionData
-instance AE.ToJSON PredictionData
+import Predictions
 
 data SlashCommand = SlashCommand
   { commandName :: Text
   , commandRegistration :: Maybe CreateApplicationCommand
-  , commandHandler :: Interaction -> Maybe OptionsData -> DiscordHandler ()
+  , commandHandler :: SQL.Connection -> Interaction -> Maybe OptionsData -> DiscordHandler ()
   }
 
--- A basic slash command with no options, it just replies with some text, possibly obtained from IO.
+-- | Constructor for a basic slash command with no options.
+-- it just replies with some text, where the text can run IO actions (possibly to obtain it)
 basicSlashCommand :: Text    -> -- Slash Command Name
                      Text    -> -- Registration Description
                      IO Text -> -- Text diplayed in the interaction response, possibly obtained with IO
@@ -43,8 +33,8 @@ basicSlashCommand name regDesc statefulText
   = SlashCommand
     { commandName = name
     , commandRegistration = createChatInput name regDesc
-    , commandHandler = \intr _options -> do
-        iomessage <- liftIO $ statefulText
+    , commandHandler = \_ intr _ -> do
+        iomessage <- liftIO statefulText
         void . restCall $
           R.CreateInteractionResponse
             (interactionId intr)
@@ -119,16 +109,25 @@ addPrediction :: SlashCommand
 addPrediction = SlashCommand
   { commandName = "addprediction"
   , commandRegistration = Just reg
-  , commandHandler = \intr maybe_options -> do
-     let output = case maybe_options of
-           Just (OptionsDataValues [pred, date]) -> "Prediction: " <> (fromRight "" . optionDataValueString $ pred) <> "\n\nDate: " <> (fromRight "" . optionDataValueString $ date)
-           _ -> "Command Error."
-     
-     void . restCall $
+  , commandHandler = \conn intr _ -> do
+     currTime <- liftIO getCurrentTime
+     let predictionData = parsePrediction currTime intr
+     output <- case predictionData of
+           Right p ->
+             let response = predictionUserName p <> " has made a prediction!\n" <>
+                         "Prediction: " <> predictionContent p <> "\n" <>
+                         "Date: " <> showT (predictionDueDate p) <> "."
+             in do
+                  _ <- liftIO . forkIO $ savePrediction conn p
+                  return response
+           Left err -> return err
+
+     x <- restCall $
           R.CreateInteractionResponse
             (interactionId intr)
             (interactionToken intr)
             (interactionResponseBasic output)
+     echo $ showT x
   }
     where
       reg =
