@@ -4,15 +4,18 @@ module Main (main) where
 import Discord
 import Discord.Types
 import Discord.Interactions
+import UnliftIO (liftIO)
 import Data.List (find)
 import Control.Monad (forM_)
+import Control.Monad.Reader (ask)
 import Utils ()
 import qualified Discord.Requests as R
 import SlashCommands
 import Responses
 import Utils
 import qualified Database.SQLite.Simple as SQL
-import Predictions (initDb)
+import Predictions (initDb, withDb, startNotifier, makeMessageSender, DbConnection)
+import Control.Concurrent.MVar
 
 main :: IO ()
 main = do
@@ -23,15 +26,20 @@ main = do
         Nothing  -> []
         Just res -> map createKeywordResponse res
 
-  dbConn <- SQL.open "appdata/database/data.db"
-  initDb dbConn
+  conn <- SQL.open "appdata/database/data.db"
+  threadSafeDBConn <- newMVar conn
+  wake <- newEmptyMVar :: IO (MVar ()) -- used for waking up the prediction checker
+  initDb conn
 
   botTerminationError <- runDiscord $ def
     { discordToken = tok
-    , discordOnEvent = onDiscordEvent dbConn keywordResponses gId
+    , discordOnStart = do
+        h <- ask
+        liftIO (startNotifier threadSafeDBConn (makeMessageSender h) wake) -- smuggle the connection out!
+    , discordOnEvent = onDiscordEvent threadSafeDBConn wake keywordResponses gId
     , discordOnEnd = do
         echo "Bot has disconnected. Cleaning up..."
-        SQL.close dbConn
+        withDb threadSafeDBConn (\conn -> SQL.close conn)
     , discordGatewayIntent = def { gatewayIntentMessageContent = True }
     }
 
@@ -39,10 +47,10 @@ main = do
 
 -- EVENTS
 
-onDiscordEvent :: SQL.Connection -> [KeywordResponse] -> GuildId -> Event -> DiscordHandler ()
-onDiscordEvent conn resList gId = \case
+onDiscordEvent :: DbConnection -> MVar () -> [KeywordResponse] -> GuildId -> Event -> DiscordHandler ()
+onDiscordEvent dbconn wake resList gId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId gId
-  InteractionCreate intr                         -> onInteractionCreate conn intr
+  InteractionCreate intr                         -> onInteractionCreate dbconn wake intr
   MessageCreate     mess                         -> onMessageCreate resList mess
   _                                              -> return ()
 
@@ -84,15 +92,15 @@ onReady appId gId = do
 
 -- | Only supports application commands currently. When someone uses an application command, the function tries to look
 -- it up in the list of the registered commands.
-onInteractionCreate :: SQL.Connection -> Interaction -> DiscordHandler ()
-onInteractionCreate conn = \case
+onInteractionCreate :: DbConnection -> MVar () -> Interaction -> DiscordHandler ()
+onInteractionCreate dbconn wake = \case
   cmd@InteractionApplicationCommand
     { applicationCommandData = input@ApplicationCommandDataChatInput {} } ->
       case
         find (\c -> applicationCommandDataName input == commandName c) mySlashCommands
       of
         Just found -> do
-          commandHandler found conn cmd (optionsData input)
+          commandHandler found dbconn wake cmd (optionsData input)
 
         Nothing ->
           echo "Somehow got unknown slash command (registrations out of date?)"

@@ -8,12 +8,13 @@ import Discord.Internal.Types.Channel (messageId)
 import UnliftIO (liftIO)
 import Data.Text (Text)
 import Control.Monad (void)
-import Control.Concurrent (forkIO)
+import Control.Concurrent (forkIO, MVar)
 import qualified Discord.Requests as R
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQL
 import Data.Time (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
+import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Utils
 import ArgumentTimer (setSavedTime, getTimeDiff, formatDiffTime)
 import Predictions
@@ -21,7 +22,7 @@ import Predictions
 data SlashCommand = SlashCommand
   { commandName :: Text
   , commandRegistration :: Maybe CreateApplicationCommand
-  , commandHandler :: SQL.Connection -> Interaction -> Maybe OptionsData -> DiscordHandler ()
+  , commandHandler :: DbConnection -> MVar () -> Interaction -> Maybe OptionsData -> DiscordHandler ()
   }
 
 -- | Constructor for a basic slash command with no options.
@@ -35,7 +36,7 @@ basicSlashCommand name regDesc statefulText
   = SlashCommand
     { commandName = name
     , commandRegistration = createChatInput name regDesc
-    , commandHandler = \_ intr _ -> do
+    , commandHandler = \_ _ intr _ -> do
         iomessage <- liftIO statefulText
         void . restCall $
           R.CreateInteractionResponse
@@ -111,7 +112,7 @@ addPrediction :: SlashCommand
 addPrediction = SlashCommand
   { commandName = "predict"
   , commandRegistration = Just reg
-  , commandHandler = \conn intr _ -> do
+  , commandHandler = \conn wake intr _ -> do
       currTime <- liftIO getCurrentTime
       let iTok = interactionToken intr -- save the interaction token to get the message ID of the reply later
       let pcd = parsePredictionCommand currTime intr :: Either T.Text PredictionCommandData
@@ -124,9 +125,7 @@ addPrediction = SlashCommand
           if currTime < predictionDueDate p then
             let
               userPing = "<@" <> showT (predictionUserId p) <> ">"
-              dueDateUTC = case (formatTime defaultTimeLocale "%-z%s" (predictionDueDate p)) of
-                '+':rest -> T.pack rest
-                _        -> "TIMESTAMP FORMATTING ERROR"
+              dueDateUTC = showT . ceiling . utcTimeToPOSIXSeconds $ predictionDueDate p
               dueDateTimeStampRel = "<t:" <> dueDateUTC <> ":R>"
               dueDateTimeStampAbs = "<t:" <> dueDateUTC <> ":f>"
               responseStart = case predictionConfidence p of
@@ -159,7 +158,7 @@ addPrediction = SlashCommand
             Right msg -> do
               void . liftIO . forkIO $ do
                 let predictionData = PredictionData p (messageId msg)
-                savePrediction conn predictionData
+                savePrediction conn wake predictionData
             Left err -> echo $ 
                           "Error acquiring the bot's prediction reply message.\
                            \ Discord sent the following error message:\n\n" <> showT err

@@ -13,7 +13,6 @@ import qualified Discord.Requests as R
 import qualified Data.Aeson as A
 import qualified Data.Attoparsec.ByteString as AT
 import Control.Monad.IO.Class (MonadIO)
-import UnliftIO (liftIO)
 import UnliftIO.Concurrent
 import Discord
 import Discord.Types
