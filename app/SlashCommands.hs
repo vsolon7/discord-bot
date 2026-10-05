@@ -137,22 +137,22 @@ addPrediction = SlashCommand
                 ", the following will occur:\n" <>
                 predictionContent p <> "."
             in
-              return response
+              return (interactionResponseBasic response)
           else
-            return "You can only predict events in the future!"
-        Left err -> return err
+            return (ephemeralResponse "You can only predict events in the future!")
+        Left err -> return (ephemeralResponse err)
 
       void . restCall $
         R.CreateInteractionResponse
           (interactionId intr)
           (interactionToken intr)
-          (interactionResponseBasic botReply)
+          botReply
 
       -- | If the predictionCommandData was parsed correctly, we want to save the prediction to the database
       -- We can't do this above because we also want to save the ID of the message the bot responds to the
       -- slash command with, and this message is sent **after** the restCall immediately above.
       case pcd of
-        Right p -> do
+        Right p | currTime < predictionDueDate p -> do
           maybeResult <- restCall $ R.GetOriginalInteractionResponse (interactionApplicationId intr) iTok
           case maybeResult of
             Right msg -> do
@@ -165,6 +165,12 @@ addPrediction = SlashCommand
         _ -> return ()
   }
     where
+      ephemeralResponse t =
+        InteractionResponseChannelMessage
+          (interactionResponseMessageBasic t)
+            { interactionResponseMessageFlags =
+                Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
+            }
       reg =
         CreateApplicationCommandChatInput
           "predict"
