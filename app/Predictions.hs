@@ -49,7 +49,7 @@ data PredictionCommandData = PredictionCommandData
   , predictionChannel :: ChannelId
   } deriving Show
 
--- | This record adds the message ID of the bot's reply to the prediction slash command in the channel.
+-- | This record adjoins the message ID of the bot's reply to the prediction slash command in the channel.
 data PredictionData = PredictionData
   { predictionCommandData :: PredictionCommandData
   , predictionReplyMessageId :: MessageId
@@ -69,6 +69,7 @@ instance SQL.ToRow PredictionData where
       where
         formatUTC t = fromInteger . ceiling . utcTimeToPOSIXSeconds $ t
 
+-- I don't understand this code very well
 instance SQL.FromRow PredictionData where
   fromRow = do
     cmdData <- PredictionCommandData
@@ -90,9 +91,16 @@ instance SQL.FromRow PredictionData where
             Just w  -> pure (DiscordId (Snowflake w))
             Nothing -> SQL.returnError SQL.ConversionFailed f "not a valid snowflake"
 
+
 maybeToEither :: a -> Maybe b -> Either a b
 maybeToEither err Nothing = Left err
 maybeToEither _ (Just x) = Right x
+
+
+safeHead :: a -> [a] -> a
+safeHead def [] = def
+safeHead _ (x:_) = x
+
 
 initDb :: SQL.Connection -> IO ()
 initDb conn = SQL.execute_ conn
@@ -107,6 +115,7 @@ initDb conn = SQL.execute_ conn
   \  channel_id     TEXT NOT NULL,\
   \  reply_mess_id  TEXT NOT NULL,\
   \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
+
 
 getUserData :: MemberOrUser -> Maybe UserId
 getUserData (
@@ -123,9 +132,6 @@ getUserData (
 
 getUserData _ = Nothing
 
-safeHead :: a -> [a] -> a
-safeHead def [] = def
-safeHead _ (x:_) = x
 
 parsePredictionDateInput :: UTCTime -> String -> Maybe UTCTime
 parsePredictionDateInput currTime inpt = case words inpt of
@@ -145,23 +151,47 @@ parsePredictionDateInput currTime inpt = case words inpt of
 
   _          -> Nothing
 
+
 parsePredictionCommand :: UTCTime -> Interaction -> Either T.Text PredictionCommandData
 parsePredictionCommand currTime (cmd@InteractionApplicationCommand { applicationCommandData = input@ApplicationCommandDataChatInput {} }) =
   do
-    dataValues <- maybeToEither "Could not access the command's option fields." (optionsData input)
-    let confidence = extractIntegerOption "confidence" dataValues
-    predText <- maybeToEither "Could not access prediction field." . extractStringOption "prediction" $ dataValues
-    dueDateText <- maybeToEither "Could not access date field." . extractStringOption "date" $ dataValues
-    gid <- maybeToEither "Error accessing Guild ID. Note that this command can only be used in a server." (interactionGuildId cmd)
-    cid <- maybeToEither "Error accessing Channel ID." (interactionChannelId cmd)
-    uid <- maybeToEither
-             "Could not get user data. Note that this command can only be used in a server."
-             (getUserData . interactionUser $ cmd)
-    dueDateUTC <- maybeToEither
-                    "Error parsing prediction date. Here are the formatting options.\n\
-                   \ **Relative time:** \"in #w\" or \"in #d\" or \"in #h\" or \"in #m\", where # is a positive integer. \"w\" stands for weeks, \"d\" stands for days, \"h\" stands for hours, and \"m\" stands for minutes.\n\
-                   \ **Absolute time:** \"on month-day-year HH:MM <timezone>\", where the timezone is optional. If no timezone is entered, the bot will default to UTC. Timezone examples are CST, CDT, EST, etc."
-                    (parsePredictionDateInput currTime . T.unpack $ dueDateText)
+    dataValues <-
+      maybeToEither
+        "Could not access the command's option fields."
+        (optionsData input)
+    let
+      confidence = -- :: Maybe Integer, since Nothing is OK; confidence level isn't a required input
+        extractIntegerOption
+          "confidence"
+          dataValues
+    predText <-
+      maybeToEither
+        "Could not access prediction field."
+        (extractStringOption "prediction" dataValues)
+    dueDateText <-
+      maybeToEither
+        "Could not access date field."
+        (extractStringOption "date" dataValues)
+    gid <-
+      maybeToEither
+        "Error accessing Guild ID. Note that this command can only be used in a server."
+        (interactionGuildId cmd)
+    cid <-
+      maybeToEither
+        "Error accessing Channel ID."
+        (interactionChannelId cmd)
+    uid <-
+      maybeToEither
+        "Could not get user data. Note that this command can only be used in a server."
+        (getUserData . interactionUser $ cmd)
+    dueDateUTC <-
+      maybeToEither
+        "Error parsing prediction date. Here are the formatting options.\n\
+        \**Relative time:** \"in #w\" or \"in #d\" or \"in #h\" or \"in #m\", where # is a positive integer.\
+        \ \"w\" stands for weeks, \"d\" stands for days, \"h\" stands for hours, and \"m\" stands for minutes.\n\
+        \**Absolute time:** \"on month-day-year HH:MM <timezone>\", where the timezone is optional.\
+        \If no timezone is entered, the bot will default to UTC. Timezone examples are CST, CDT, EST, etc."
+        (parsePredictionDateInput currTime . T.unpack $ dueDateText)
     return $
       PredictionCommandData
         { predictionContent = predText
@@ -176,51 +206,95 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
 parsePredictionCommand _ _ = Left "Tried to parse a non-prediction slash command."
 
 
+-- | Generate the bot reply. parsePredictionCommand returns either an error message or a record of the
+-- relevant prediction command data. We must either respond with an (ephemeral) error, or else form the bot reply
+-- in the case that the user actually predicted a future event.
+createInitialPredictionResponse :: UTCTime -> Either T.Text PredictionCommandData -> InteractionResponse
+createInitialPredictionResponse currTime pcd =
+  case pcd of
+    Right p ->
+      if currTime < predictionDueDate p then
+        let
+          userPing = "<@" <> showT (predictionUserId p) <> ">"
+          dueDateUTC = showT . ceiling . utcTimeToPOSIXSeconds $ predictionDueDate p
+          dueDateTimeStampRel = "<t:" <> dueDateUTC <> ":R>"
+          dueDateTimeStampAbs = "<t:" <> dueDateUTC <> ":f>"
+          responseStart = case predictionConfidence p of
+            Nothing -> "They claim"
+            Just c  -> "They are " <> showT c <> "%" <> " confident"
+          response =
+            userPing <> " has made a prediction!\n" <>
+            responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
+            ", the following will occur:\n" <>
+            predictionContent p <> "."
+        in
+          interactionResponseBasic response
+      else
+        ephemeralResponse "You can only predict events in the future!"
+    Left err -> ephemeralResponse err
+    where
+      ephemeralResponse t =
+        InteractionResponseChannelMessage
+          (interactionResponseMessageBasic t)
+            { interactionResponseMessageFlags =
+                Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
+            }
+
+
 savePrediction :: DbConnection -> MVar () -> PredictionData -> IO ()
-savePrediction dbconn wake p = withDb dbconn $ \conn -> do
-  SQL.execute conn "INSERT INTO predictions\
-                   \ (content, confidence, created_at, due_at, user_id, guild_id, channel_id, reply_mess_id)\
-                   \VALUES (?,?,?,?,?,?,?,?)" p
-  void (tryPutMVar wake ())
+savePrediction dbconn wake p = withDb dbconn $
+  \conn -> do
+    SQL.execute conn 
+      "INSERT INTO predictions \
+      \(content, confidence, created_at, due_at, user_id, guild_id, channel_id, reply_mess_id) \
+      \VALUES (?,?,?,?,?,?,?,?)" p
+
+    -- Wake the prediction notifier so that it can recompute when the next prediction is due.
+    void (tryPutMVar wake ())
 
 
-
+-- | Using a DiscordHandle that was smuggled out of the API, create a function that can send
+-- messages to the discord server.
 makeMessageSender :: DiscordHandle -> (ChannelRequest Message -> IO ())
 makeMessageSender h messageReq = do
-    result <- runReaderT (restCall messageReq) h
-    case result of
-      Left err -> echo $ "Message sender failed to send message. Discord returned the error:\n" <> showT err
-      Right _  -> return ()
+  result <- runReaderT (restCall messageReq) h
+  case result of
+    Left err -> echo $ "Message sender failed to send message. Discord returned the error:\n" <> showT err
+    Right _  -> return ()
 
 
 nextPredictionTime :: DbConnection -> IO (Maybe UTCTime)
-nextPredictionTime dbconn = withDb dbconn $ \conn -> do
-  nextList <- SQL.query_ conn
-                    "SELECT MIN(due_at)\
-                   \ FROM predictions\
-                   \ WHERE notified = 0" :: IO [SQL.Only (Maybe Integer)]
-  case nextList of
-    [SQL.Only (Just t)] -> return $ Just (posixSecondsToUTCTime . fromInteger $ t)
-    _                   -> return Nothing
+nextPredictionTime dbconn = withDb dbconn $
+  \conn -> do
+    nextList <- SQL.query_ conn
+                  "SELECT MIN(due_at) \
+                  \FROM predictions \
+                  \WHERE notified = 0" :: IO [SQL.Only (Maybe Integer)]
+    case nextList of
+      [SQL.Only (Just t)] -> return $ Just (posixSecondsToUTCTime . fromInteger $ t)
+      _                   -> return Nothing
 
 
 duePredictions :: DbConnection -> IO [PredictionData]
-duePredictions dbconn = withDb dbconn $ \conn -> do
-  nowPOSIX <- fromIntegral . ceiling . utcTimeToPOSIXSeconds <$> getCurrentTime :: IO Integer
-  duePreds <- SQL.query conn
-                "SELECT content, confidence, created_at, due_at, user_id, guild_id, channel_id, reply_mess_id\
-               \ FROM predictions\
-               \ WHERE notified = 0 AND due_at <= ?"
-               (SQL.Only nowPOSIX) :: IO [PredictionData]
+duePredictions dbconn = withDb dbconn $
+  \conn -> do
+    nowPOSIX <- fromIntegral . ceiling . utcTimeToPOSIXSeconds <$> getCurrentTime :: IO Integer
+    duePreds <-
+      SQL.query conn
+        "SELECT content, confidence, created_at, due_at, user_id, guild_id, channel_id, reply_mess_id \
+        \FROM predictions \
+        \WHERE notified = 0 AND due_at <= ?"
+        (SQL.Only nowPOSIX) :: IO [PredictionData]
 
-  SQL.execute conn
-    "UPDATE predictions SET notified = 1 \
-    \WHERE notified = 0 AND due_at <= ?"
-    (SQL.Only nowPOSIX)
+    SQL.execute conn
+      "UPDATE predictions SET notified = 1 \
+      \WHERE notified = 0 AND due_at <= ?"
+      (SQL.Only nowPOSIX)
 
-  return duePreds
+    return duePreds
 
 
+-- | This giant function just creates the response message that the bot will reply with.
 createPredictionAnnouncement :: PredictionData -> ChannelRequest Message
 createPredictionAnnouncement (PredictionData p mid) =
   let
@@ -257,12 +331,17 @@ createPredictionAnnouncement (PredictionData p mid) =
           Nothing)
 
 
+ -- | This function starts the prediction notifier process on a new thread.
+ -- The notifier first checks for any predictions that are due and uses the message sender to announce them, if so.
+ -- Then, it checks the time T until the next prediction due date and it rests for min(T, 1 hour).
+ -- The notifier rests by trying to take from an empty MVar. If any other process or function wants to
+ -- wake the notifier (for example, when a new prediction is made), it should put () into this same MVar.
 startNotifier :: DbConnection -> (ChannelRequest Message -> IO ()) -> MVar () -> IO ()
 startNotifier dbconn sender wake = void . forkIO . forever $ do
   ps <- duePredictions dbconn
   forM_ ps $ \p -> do
     sender (createPredictionAnnouncement p)
-    threadDelay (5 * 1000000) -- wait 5 seconds between announcements for predictions that are close to each other
+    threadDelay (3 * 1000000) -- wait 3 seconds between announcements for predictions that are close to each other
 
   npt <- nextPredictionTime dbconn
   now <- getCurrentTime

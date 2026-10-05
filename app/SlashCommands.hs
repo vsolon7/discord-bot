@@ -19,19 +19,24 @@ import Utils
 import ArgumentTimer (setSavedTime, getTimeDiff, formatDiffTime)
 import Predictions
 
+-- TODO: Create different slash command types? Not all slash commands need access to the database or
+-- the MVar used to wake the prediction notifier
 data SlashCommand = SlashCommand
   { commandName :: Text
   , commandRegistration :: Maybe CreateApplicationCommand
-  , commandHandler :: DbConnection -> MVar () -> Interaction -> Maybe OptionsData -> DiscordHandler ()
+  , commandHandler :: DbConnection
+                   -> MVar ()
+                   -> Interaction
+                   -> Maybe OptionsData
+                   -> DiscordHandler ()
   }
 
 -- | Constructor for a basic slash command with no options.
--- it just replies with some text, where the text can run IO actions (possibly to obtain it)
+-- it just replies with some text that is the result of running IO actions.
 basicSlashCommand :: Text    -> -- Slash Command Name
                      Text    -> -- Registration Description
                      IO Text -> -- Text diplayed in the interaction response, possibly obtained with IO
                      SlashCommand
-
 basicSlashCommand name regDesc statefulText
   = SlashCommand
     { commandName = name
@@ -49,49 +54,55 @@ basicSlashCommand name regDesc statefulText
 mySlashCommands :: [SlashCommand]
 mySlashCommands = [ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp, addPrediction]
 
+
 ping :: SlashCommand
-ping = basicSlashCommand
-         ("ping")
-         ("Responds 'pong'")
-         (return "pong!")
+ping =
+  basicSlashCommand
+    "ping"
+    "Responds 'pong'"
+    (return "pong!")
 
 
 getCurrTime :: SlashCommand
-getCurrTime = basicSlashCommand
-                ("currtime")
-                ("Displays the Current time in UTC.")
-                (do x <- getCurrentTime; return $ "The current time is " <> showT x <> ".")
+getCurrTime =
+  basicSlashCommand
+    "currtime"
+    "Displays the Current time in UTC."
+    (do x <- getCurrentTime; return $ "The current time is " <> showT x <> ".")
 
 
 resetArgCounter :: SlashCommand
-resetArgCounter = basicSlashCommand
-                    ("resetac")
-                    ("Resets the time since the last autistic argument.")
-                    (saveTimeIO)
-  where
-    saveTimeIO :: IO Text
-    saveTimeIO = do
-      currTime <- getCurrentTime
-      setSavedTime _ARGTIMER_FILEPATH currTime
-      return "Time since the last autistic argument: 0 days"
+resetArgCounter =
+  basicSlashCommand
+    "resetac"
+    "Resets the time since the last autistic argument."
+    saveTimeIO
+      where
+        saveTimeIO :: IO Text
+        saveTimeIO = do
+          currTime <- getCurrentTime
+          setSavedTime _ARGTIMER_FILEPATH currTime
+          return "Time since the last autistic argument: 0 days"
 
 
 viewArgCounter :: SlashCommand
-viewArgCounter = basicSlashCommand
-                   ("ac")
-                   ("Gives the time since the last autistic argument.")
-                   (timeDiffIO)
-  where
-    timeDiffIO = do
-      timeDiff <- getTimeDiff _ARGTIMER_FILEPATH
-      return $ "Time since the last autistic argument: " <> (T.pack $ formatDiffTime timeDiff) <> "..."
+viewArgCounter =
+  basicSlashCommand
+    "ac"
+    "Gives the time since the last autistic argument."
+    timeDiffIO
+      where
+        timeDiffIO = do
+          timeDiff <- getTimeDiff _ARGTIMER_FILEPATH
+          return $ "Time since the last autistic argument: " <> (T.pack $ formatDiffTime timeDiff) <> "..."
 
 
 printGiantGlorp :: SlashCommand
-printGiantGlorp = basicSlashCommand
-                    ("giantglorp")
-                    ("Prints a giant glorp.")
-                    (return . T.pack $ ".\n" ++ giantGlorp)
+printGiantGlorp =
+  basicSlashCommand
+    "giantglorp"
+    "Prints a giant glorp."
+    (return . T.pack $ ".\n" ++ giantGlorp)
 
 giantGlorp :: String
 giantGlorp = "I⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢠⣄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄I\n"
@@ -108,6 +119,7 @@ giantGlorp = "I⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢠⣄⠄⠄⠄⠄⠄�
           ++ "I⠄⠄⠄⠄⠄⣼⣿⣿⣿⣿⣿⣿⡿⢿⡿⣿⢿⣟⣛⣿⣷⣿⣿⣿⣂⠄⠄I\n"
           ++ "I⠄⠄⠄⠄⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠄I\n"
 
+
 addPrediction :: SlashCommand
 addPrediction = SlashCommand
   { commandName = "predict"
@@ -116,32 +128,9 @@ addPrediction = SlashCommand
       currTime <- liftIO getCurrentTime
       let iTok = interactionToken intr -- save the interaction token to get the message ID of the reply later
       let pcd = parsePredictionCommand currTime intr :: Either T.Text PredictionCommandData
+      let botReply = createInitialPredictionResponse currTime pcd
 
-      -- | Generate the bot reply. parsePredictionCommand returns either an error message or a record of the
-      -- relevant prediction command data. We must either respond with an error, or else form the bot reply,
-      -- in the case that the user actually predicted a future event.
-      botReply <- case pcd of
-        Right p ->
-          if currTime < predictionDueDate p then
-            let
-              userPing = "<@" <> showT (predictionUserId p) <> ">"
-              dueDateUTC = showT . ceiling . utcTimeToPOSIXSeconds $ predictionDueDate p
-              dueDateTimeStampRel = "<t:" <> dueDateUTC <> ":R>"
-              dueDateTimeStampAbs = "<t:" <> dueDateUTC <> ":f>"
-              responseStart = case predictionConfidence p of
-                Nothing -> "They claim"
-                Just c  -> "They are " <> showT c <> "%" <> " confident"
-              response =
-                userPing <> " has made a prediction!\n" <>
-                responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
-                ", the following will occur:\n" <>
-                predictionContent p <> "."
-            in
-              return (interactionResponseBasic response)
-          else
-            return (ephemeralResponse "You can only predict events in the future!")
-        Left err -> return (ephemeralResponse err)
-
+      -- Respond with the error or the correct reply
       void . restCall $
         R.CreateInteractionResponse
           (interactionId intr)
@@ -149,29 +138,26 @@ addPrediction = SlashCommand
           botReply
 
       -- | If the predictionCommandData was parsed correctly, we want to save the prediction to the database
-      -- We can't do this above because we also want to save the ID of the message the bot responds to the
+      -- We can't do this before because we also want to save the ID of the message the bot responds to the
       -- slash command with, and this message is sent **after** the restCall immediately above.
       case pcd of
         Right p | currTime < predictionDueDate p -> do
-          maybeResult <- restCall $ R.GetOriginalInteractionResponse (interactionApplicationId intr) iTok
+          maybeResult <- restCall $
+            R.GetOriginalInteractionResponse
+              (interactionApplicationId intr)
+              iTok
           case maybeResult of
             Right msg -> do
-              void . liftIO . forkIO $ do
+              void . liftIO . forkIO $ do -- forkIO is probably not necessary.
                 let predictionData = PredictionData p (messageId msg)
                 savePrediction conn wake predictionData
-            Left err -> echo $ 
-                          "Error acquiring the bot's prediction reply message.\
-                           \ Discord sent the following error message:\n\n" <> showT err
+            Left err -> echo $
+              "Error acquiring the bot's prediction reply message.\
+              \Discord sent the following error message:\n" <> showT err
         _ -> return ()
   }
     where
-      ephemeralResponse t =
-        InteractionResponseChannelMessage
-          (interactionResponseMessageBasic t)
-            { interactionResponseMessageFlags =
-                Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
-            }
-      reg =
+      reg = -- Command registration
         CreateApplicationCommandChatInput
           "predict"
           Nothing

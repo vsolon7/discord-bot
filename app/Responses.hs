@@ -27,6 +27,7 @@ data KeywordResponse = KeywordResponse
   , responseHandler :: Message -> DiscordHandler ()
   }
 
+
 createKeywordResponse :: KeywordResponseData -> KeywordResponse
 createKeywordResponse res = KeywordResponse
   { responseData = res
