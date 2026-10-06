@@ -147,8 +147,12 @@ addCurrencyFromReaction dbconn reactInfo = do
                 "Failed to get the original message when trying to pay a user for an emoji reaction. \
                 \Discord returned the error:\n" <> showT err
             Right message -> do
-              let op = userId . messageAuthor $ message
-              if (op /= reactionUserId reactInfo) -- you can't give yourself money by self-reacting
-                then updateCurrency dbconn (CurrencyUpdate op 1) -- TODO: should different emojis give different amounts of currency?
+              let op = messageAuthor $ message
+              -- you can't give yourself money by reacting to your message, and bots can't get money
+              if (userId op == reactionUserId reactInfo || userIsBot op)
+                then return ()
               else
-                return ()
+                -- TODO: should different emojis give different amounts of currency?
+                updateCurrency dbconn (CurrencyUpdate (userId op) 1)
+
+-- 1439656966288052254 is the bot user id
