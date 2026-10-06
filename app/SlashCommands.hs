@@ -54,7 +54,7 @@ basicSlashCommand name regDesc statefulText
 
 -- List of slash commands to register
 mySlashCommands :: [SlashCommand]
-mySlashCommands = [ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp, makePrediction, makeWager, payCommand]
+mySlashCommands = [ ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp, makePrediction, makeWager, payCommand, viewCurrency ]
 
 
 ping :: SlashCommand
@@ -315,6 +315,45 @@ payCommand = SlashCommand
                     (Left False)
                     (Just 0)
                     Nothing
+                ]
+              )
+            )
+          Nothing
+          (Just False)
+
+
+viewCurrency :: SlashCommand
+viewCurrency = SlashCommand
+  { commandName = "viewcurrency"
+  , commandRegistration = Just reg
+  , commandHandler = \dbconn wake intr _ -> do
+      let vccd = parseViewCurrencyCommand intr :: Either T.Text ViewCurrencyCommandData
+      botReply <- liftIO (createViewCurrencyResponse dbconn vccd)
+      -- Respond with the error or the correct reply
+      void . restCall $
+        R.CreateInteractionResponse
+          (interactionId intr)
+          (interactionToken intr)
+          botReply
+
+      -- TODO: Database stuff
+  }
+    where
+      reg = -- Command registration
+        CreateApplicationCommandChatInput
+          "viewcurrency"
+          Nothing
+          "Check how much money someone has"
+          Nothing (
+            Just (
+              OptionsValues
+                [
+                  OptionValueUser
+                    "user"
+                    Nothing
+                    "User to check"
+                    Nothing
+                    True
                 ]
               )
             )

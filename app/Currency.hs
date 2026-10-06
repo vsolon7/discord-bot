@@ -17,7 +17,7 @@ import qualified Data.Text as T
 import Control.Concurrent (forkIO)
 import Control.Monad (void)
 import Predictions
-import Utils (showT, extractNumberOption, extractUserOption, echo)
+import Utils (showT, extractNumberOption, extractUserOption, echo, ephemeralResponseBasic)
 import UnliftIO (liftIO)
 import Control.Monad.Reader (ask, runReaderT)
 
@@ -36,6 +36,9 @@ data PayCommandData = PayCommandData
   , payToUser :: UserId
   , payAmount :: Double
   } deriving Show
+
+data ViewCurrencyCommandData = ViewCurrencyCommandData
+  { viewCurrencyUser :: UserId }
 
 
 initCurrencyTable :: SQL.Connection -> IO ()
@@ -72,7 +75,7 @@ parsePayCommand :: Interaction -> Either T.Text PayCommandData
 parsePayCommand (cmd@InteractionApplicationCommand { applicationCommandData = input@ApplicationCommandDataChatInput {} }) = do
   dataValues <-
     maybeToEither
-      "Could not access the command's option fields."
+      "Could not access the pay command's option fields."
       (optionsData input)
   payTo <-
     maybeToEither
@@ -113,15 +116,36 @@ createPaymentResponse dbconn pcd =
             return response
         else do
           return "You don't have enough currency!"
-      return (ephemeralResponse response)
-    Left err -> return (ephemeralResponse err)
-    where
-      ephemeralResponse t =
-        InteractionResponseChannelMessage
-          (interactionResponseMessageBasic t)
-            { interactionResponseMessageFlags =
-                Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
-            }
+      return (ephemeralResponseBasic response)
+    Left err -> return (ephemeralResponseBasic err)
+
+
+parseViewCurrencyCommand :: Interaction -> Either T.Text ViewCurrencyCommandData
+parseViewCurrencyCommand (cmd@InteractionApplicationCommand { applicationCommandData = input@ApplicationCommandDataChatInput {} }) = do
+  dataValues <-
+    maybeToEither
+      "Could not access the view currency command's option fields."
+      (optionsData input)
+  user <-
+    maybeToEither
+      "Could not access user field in the view currency command."
+      (extractUserOption "user" dataValues)
+  return $
+    ViewCurrencyCommandData user
+
+parseViewCurrencyCommand _ = Left "Tried to parse a non slash command when parsing the view currency command."
+
+
+createViewCurrencyResponse :: DbConnection -> Either T.Text ViewCurrencyCommandData -> IO InteractionResponse
+createViewCurrencyResponse dbconn vccd =
+  case vccd of
+  Right v -> do
+    c <- getCurrency dbconn (viewCurrencyUser v)
+    let userPing = "<@" <> showT (viewCurrencyUser v) <> ">"
+        response = userPing <> " has " <> showT (currencyQueryAmount c) <> " units of currency."
+    return (ephemeralResponseBasic response)
+  Left err -> return (ephemeralResponseBasic err)
+
 
 
 addCurrencyFromReaction :: DbConnection -> ReactionInfo -> DiscordHandler ()
@@ -154,5 +178,3 @@ addCurrencyFromReaction dbconn reactInfo = do
               else
                 -- TODO: should different emojis give different amounts of currency?
                 updateCurrency dbconn (CurrencyUpdate (userId op) 1)
-
--- 1439656966288052254 is the bot user id

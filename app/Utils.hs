@@ -94,6 +94,16 @@ extractUserOption optionName (OptionsDataValues vs) =
   case [uid | OptionDataValueUser n uid <- vs, n == optionName] of
     (uid:_) -> Just uid
     _     -> Nothing
+
+makeEphemeral :: InteractionResponseMessage -> InteractionResponse
+makeEphemeral mess =
+  InteractionResponseChannelMessage
+    mess
+      { interactionResponseMessageFlags =
+          Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
+      }
+
+ephemeralResponseBasic t = makeEphemeral . interactionResponseMessageBasic $ t
 --
 -- JSON Parsing
 --

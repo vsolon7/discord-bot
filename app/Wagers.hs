@@ -21,7 +21,7 @@ import Data.Time.Calendar (Day)
 import Data.Time.LocalTime
 import Data.Ratio
 import Predictions (getUserData, parseDateInput, maybeToEither)
-import Utils (extractStringOption, extractIntegerOption, extractNumberOption, showT)
+import Utils (extractStringOption, extractIntegerOption, extractNumberOption, showT, ephemeralResponseBasic)
 import Data.Maybe (fromMaybe)
 import Data.Char (isDigit)
 
@@ -90,7 +90,7 @@ parseWagerCommand :: UTCTime -> Interaction -> Either T.Text WagerCommandData
 parseWagerCommand currTime (cmd@InteractionApplicationCommand { applicationCommandData = input@ApplicationCommandDataChatInput {} }) = do
   dataValues <-
     maybeToEither
-      "Could not access the command's option fields."
+      "Could not access the wager command's option fields."
       (optionsData input)
   wagerText <-
     maybeToEither
@@ -173,15 +173,9 @@ createInitialWagerResponse currTime wcd =
               (Just [ActionRowButtons [takeButton]])
               Nothing
       else
-        ephemeralResponse "You can only predict events in the future!"
-    Left err -> ephemeralResponse err
+        ephemeralResponseBasic "You can only predict events in the future!"
+    Left err -> ephemeralResponseBasic err
     where
-      ephemeralResponse t =
-        InteractionResponseChannelMessage
-          (interactionResponseMessageBasic t)
-            { interactionResponseMessageFlags =
-                Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
-            }
       takeButton =
         Button
           "b"

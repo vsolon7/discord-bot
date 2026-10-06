@@ -9,7 +9,7 @@ import Discord.Internal.Rest.Channel
 import qualified Discord.Requests as R
 import Discord.Internal.Types.Interactions
 import Text.Read (readMaybe)
-import Utils (extractStringOption, extractIntegerOption, showT, echo)
+import Utils (extractStringOption, extractIntegerOption, showT, echo, ephemeralResponseBasic)
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQL
 import qualified Database.SQLite.Simple.Internal as SQL
@@ -158,7 +158,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
   do
     dataValues <-
       maybeToEither
-        "Could not access the command's option fields."
+        "Could not access the prediction command's option fields."
         (optionsData input)
     let
       confidence = -- :: Maybe Integer, since Nothing is OK; confidence level isn't a required input
@@ -231,15 +231,8 @@ createInitialPredictionResponse currTime pcd =
         in
           interactionResponseBasic response
       else
-        ephemeralResponse "You can only predict events in the future!"
-    Left err -> ephemeralResponse err
-    where
-      ephemeralResponse t =
-        InteractionResponseChannelMessage
-          (interactionResponseMessageBasic t)
-            { interactionResponseMessageFlags =
-                Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
-            }
+        ephemeralResponseBasic "You can only predict events in the future!"
+    Left err -> ephemeralResponseBasic err
 
 
 savePrediction :: DbConnection -> MVar () -> PredictionData -> IO ()
