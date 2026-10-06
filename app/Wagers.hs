@@ -162,7 +162,15 @@ createInitialWagerResponse currTime wcd =
             \on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <>
             ", the following will occur:\n" <> wagerContent w <> "."
         in
-          interactionResponseBasic response
+          InteractionResponseChannelMessage $
+            InteractionResponseMessage
+              Nothing
+              (Just response)
+              Nothing
+              Nothing
+              Nothing
+              (Just [ActionRowButtons [takeButton]])
+              Nothing
       else
         ephemeralResponse "You can only predict events in the future!"
     Left err -> ephemeralResponse err
@@ -173,3 +181,10 @@ createInitialWagerResponse currTime wcd =
             { interactionResponseMessageFlags =
                 Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
             }
+      takeButton =
+        Button
+          "b"
+          False
+          ButtonStylePrimary
+          (Just "Accept Wager")
+          Nothing
