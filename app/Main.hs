@@ -33,7 +33,7 @@ main = do
   wake <- newEmptyMVar :: IO (MVar ()) -- used for waking up the prediction checker
   initPredictionTable conn -- see Predictions.hs. Creates the predictions table if it doesn't exist
 
-  -- \| Starts the discord bot.
+  -- | Starts the discord bot.
   -- 1. discordOnStart: When the bot starts, we make a new thread that periodically checks the database for the next due
   -- prediction and sends a reply when it occurs. This requires us to smuggle out the discord handle so that our new
   -- thread has access to the connection. Future functionality might result in smuggling the handle out to more threads.
@@ -59,7 +59,7 @@ main = do
   echo $ "A fatal error occurred: " <> botTerminationError
 
 
--- | This function receives every Discord event and decides what to do with it.
+-- This function receives every Discord event and decides what to do with it.
 onDiscordEvent :: DbConnection -- some bot interaction responses involve database reads/writes
                -> MVar () -- used to the prediction notifier when a new prediction is made
                -> [KeywordResponse]
@@ -124,7 +124,7 @@ onInteractionCreate dbconn wake = \case
     return () -- Unexpected/unsupported interaction type
 
 
--- | When a message is created, check if it begins with one of the KeywordResponse keywords
+-- When a message is created, check if it begins with one of the KeywordResponse keywords
 onMessageCreate :: [KeywordResponse] -> Message -> DiscordHandler ()
 onMessageCreate resList mess = case (fromBot mess) of
   True -> return ()

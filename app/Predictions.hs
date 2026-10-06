@@ -133,8 +133,8 @@ getUserData (
 getUserData _ = Nothing
 
 
-parsePredictionDateInput :: UTCTime -> String -> Maybe UTCTime
-parsePredictionDateInput currTime inpt = case words inpt of
+parseDateInput :: UTCTime -> String -> Maybe UTCTime
+parseDateInput currTime inpt = case words inpt of
   ("on":absInpt:timeInpt:timeZoneOrEmpty) ->
     let
       timeZone = parseTimeM False defaultTimeLocale "%Z" (safeHead "UTC" timeZoneOrEmpty)
@@ -191,7 +191,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
         \ \"w\" stands for weeks, \"d\" stands for days, \"h\" stands for hours, and \"m\" stands for minutes.\n\
         \**Absolute time:** \"on month-day-year HH:MM <timezone>\", where the timezone is optional.\
         \If no timezone is entered, the bot will default to UTC. Timezone examples are CST, CDT, EST, etc."
-        (parsePredictionDateInput currTime . T.unpack $ dueDateText)
+        (parseDateInput currTime . T.unpack $ dueDateText)
     return $
       PredictionCommandData
         { predictionContent = predText
@@ -203,7 +203,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
         , predictionChannel = cid
         }
 
-parsePredictionCommand _ _ = Left "Tried to parse a non-prediction slash command."
+parsePredictionCommand _ _ = Left "Tried to parse an interaction that is not a chat input slash command."
 
 
 -- | Generate the bot reply. parsePredictionCommand returns either an error message or a record of the

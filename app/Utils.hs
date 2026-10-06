@@ -19,6 +19,7 @@ import Discord.Types
 import Discord.Interactions
 import Text.Read (readMaybe)
 import Data.Time.Clock (getCurrentTime, diffUTCTime, NominalDiffTime)
+import Data.Scientific (toRealFloat)
 import GHC.Generics
 
 _KEYWORD_RESPONSE_FILEPATH = "appdata/keywords/keywords.json"
@@ -78,6 +79,13 @@ extractIntegerOption _ (OptionsDataSubcommands _) = Nothing
 extractIntegerOption optionName (OptionsDataValues vs) =
   case [v | OptionDataValueInteger n (Right v) <- vs, n == optionName] of
     (v:_) -> Just v
+    _     -> Nothing
+
+extractNumberOption :: T.Text -> OptionsData -> Maybe Double
+extractNumberOption _ (OptionsDataSubcommands _) = Nothing
+extractNumberOption optionName (OptionsDataValues vs) =
+  case [v | OptionDataValueNumber n (Right v) <- vs, n == optionName] of
+    (v:_) -> Just (toRealFloat v)
     _     -> Nothing
 
 --

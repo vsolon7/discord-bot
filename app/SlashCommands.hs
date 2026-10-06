@@ -18,6 +18,7 @@ import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Utils
 import ArgumentTimer (setSavedTime, getTimeDiff, formatDiffTime)
 import Predictions
+import Wagers
 
 -- TODO: Create different slash command types? Not all slash commands need access to the database or
 -- the MVar used to wake the prediction notifier
@@ -52,7 +53,7 @@ basicSlashCommand name regDesc statefulText
 
 -- List of slash commands to register
 mySlashCommands :: [SlashCommand]
-mySlashCommands = [ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp, addPrediction]
+mySlashCommands = [ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp, makePrediction, makeWager]
 
 
 ping :: SlashCommand
@@ -120,8 +121,8 @@ giantGlorp = "I⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢠⣄⠄⠄⠄⠄⠄�
           ++ "I⠄⠄⠄⠄⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠄I\n"
 
 
-addPrediction :: SlashCommand
-addPrediction = SlashCommand
+makePrediction :: SlashCommand
+makePrediction = SlashCommand
   { commandName = "predict"
   , commandRegistration = Just reg
   , commandHandler = \conn wake intr _ -> do
@@ -193,6 +194,78 @@ addPrediction = SlashCommand
                     (Left False)
                     (Just 1)
                     (Just 100)
+                ]
+              )
+            )
+          Nothing
+          (Just False)
+
+
+makeWager :: SlashCommand
+makeWager = SlashCommand
+  { commandName = "wager"
+  , commandRegistration = Just reg
+  , commandHandler = \conn wake intr _ -> do
+      currTime <- liftIO getCurrentTime
+      let iTok = interactionToken intr -- save the interaction token to get the message ID of the reply later
+      let pcd = parseWagerCommand currTime intr :: Either T.Text WagerCommandData
+      let botReply = createInitialWagerResponse currTime pcd
+
+      -- Respond with the error or the correct reply
+      void . restCall $
+        R.CreateInteractionResponse
+          (interactionId intr)
+          (interactionToken intr)
+          botReply
+
+      -- TODO: Database stuff
+  }
+    where
+      reg = -- Command registration
+        CreateApplicationCommandChatInput
+          "wager"
+          Nothing
+          "Offer a wager!"
+          Nothing (
+            Just (
+              OptionsValues
+                [
+                  OptionValueString
+                    "claim"
+                    Nothing
+                    "What you are betting will happen"
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueString
+                    "date"
+                    Nothing
+                    "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\""
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueNumber
+                    "amount"
+                    Nothing
+                    "Amount of currency you're betting"
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 0)
+                    Nothing
+                , OptionValueString
+                    "odds"
+                    Nothing
+                    "(Optional) odds you're giving"
+                    Nothing
+                    False
+                    (Left False)
+                    (Just 3)
+                    Nothing
                 ]
               )
             )
