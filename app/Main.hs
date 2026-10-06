@@ -14,12 +14,11 @@ import qualified Discord.Requests as R
 import Discord.Types
 import Predictions (DbConnection, initPredictionTable, startNotifier, withDb)
 import Wagers (initWagerTable)
-import Currency (initCurrencyTable)
+import Currency (initCurrencyTable, addCurrencyFromReaction)
 import Responses
 import SlashCommands
 import UnliftIO (liftIO)
 import Utils
-import Utils ()
 
 main :: IO ()
 main = do
@@ -75,6 +74,7 @@ onDiscordEvent dbconn wake resList gId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId gId
   InteractionCreate intr -> onInteractionCreate dbconn wake intr
   MessageCreate mess -> onMessageCreate resList mess
+  MessageReactionAdd info -> addCurrencyFromReaction dbconn info
   _ -> return ()
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
