@@ -102,8 +102,8 @@ safeHead def [] = def
 safeHead _ (x:_) = x
 
 
-initDb :: SQL.Connection -> IO ()
-initDb conn = SQL.execute_ conn
+initPredictionTable :: SQL.Connection -> IO ()
+initPredictionTable conn = SQL.execute_ conn
   "CREATE TABLE IF NOT EXISTS predictions(\
   \  id             INTEGER PRIMARY KEY,\
   \  content        TEXT NOT NULL,\
@@ -253,16 +253,6 @@ savePrediction dbconn wake p = withDb dbconn $
     void (tryPutMVar wake ())
 
 
--- | Using a DiscordHandle that was smuggled out of the API, create a function that can send
--- messages to the discord server.
-makeMessageSender :: DiscordHandle -> (ChannelRequest Message -> IO ())
-makeMessageSender h messageReq = do
-  result <- runReaderT (restCall messageReq) h
-  case result of
-    Left err -> echo $ "Message sender failed to send message. Discord returned the error:\n" <> showT err
-    Right _  -> return ()
-
-
 nextPredictionTime :: DbConnection -> IO (Maybe UTCTime)
 nextPredictionTime dbconn = withDb dbconn $
   \conn -> do
@@ -332,17 +322,27 @@ createPredictionAnnouncement (PredictionData p mid) =
 
 
  -- | This function starts the prediction notifier process on a new thread.
- -- The notifier first checks for any predictions that are due and uses the message sender to announce them, if so.
- -- Then, it checks the time T until the next prediction due date and it rests for min(T, 1 hour).
  -- The notifier rests by trying to take from an empty MVar. If any other process or function wants to
  -- wake the notifier (for example, when a new prediction is made), it should put () into this same MVar.
-startNotifier :: DbConnection -> (ChannelRequest Message -> IO ()) -> MVar () -> IO ()
-startNotifier dbconn sender wake = void . forkIO . forever $ do
+startNotifier :: DbConnection -> MVar () -> DiscordHandle -> IO ()
+startNotifier dbconn wake h = void . forkIO . forever $ do
+  -- Get the predictions that are due (or past due)
   ps <- duePredictions dbconn
+
   forM_ ps $ \p -> do
-    sender (createPredictionAnnouncement p)
+    -- Send the prediction notification message
+    res <- runReaderT (restCall (createPredictionAnnouncement p)) h
+    case res of
+      Left err -> do
+        echo $
+          "Failed to send prediction result announcemnt.\
+          \Prediction data was:\n" <> showT p <>
+          "Discord returned the error:\n" <> showT err
+      Right _  -> return ()
     threadDelay (3 * 1000000) -- wait 3 seconds between announcements for predictions that are close to each other
 
+
+  -- checks the time T until the next prediction due date and rests for min(T, 1 hour).
   npt <- nextPredictionTime dbconn
   now <- getCurrentTime
 

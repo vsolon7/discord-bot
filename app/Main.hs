@@ -12,7 +12,7 @@ import Discord
 import Discord.Interactions
 import qualified Discord.Requests as R
 import Discord.Types
-import Predictions (DbConnection, initDb, makeMessageSender, startNotifier, withDb)
+import Predictions (DbConnection, initPredictionTable, startNotifier, withDb)
 import Responses
 import SlashCommands
 import UnliftIO (liftIO)
@@ -29,9 +29,9 @@ main = do
         Just res -> map createKeywordResponse res
 
   conn <- SQL.open "appdata/database/data.db"
-  threadSafeDBConn <- newMVar conn
+  threadSafeDBConn <- newMVar conn -- used to ensure only one thread can access the database at a time
   wake <- newEmptyMVar :: IO (MVar ()) -- used for waking up the prediction checker
-  initDb conn -- see Predictions.hs. Creates the predictions table if it doesn't exist
+  initPredictionTable conn -- see Predictions.hs. Creates the predictions table if it doesn't exist
 
   -- \| Starts the discord bot.
   -- 1. discordOnStart: When the bot starts, we make a new thread that periodically checks the database for the next due
@@ -45,21 +45,21 @@ main = do
   botTerminationError <-
     runDiscord $
       def
-        { discordToken = tok,
-          discordOnStart = do
-            h <- ask
-            liftIO (startNotifier threadSafeDBConn (makeMessageSender h) wake), -- smuggle the connection out!
-          discordOnEvent = onDiscordEvent threadSafeDBConn wake keywordResponses gId,
-          discordOnEnd = do
+        { discordToken = tok
+        , discordOnStart = do
+            h <- ask -- smuggle the connection out!
+            liftIO (startNotifier threadSafeDBConn wake h)
+        , discordOnEvent = onDiscordEvent threadSafeDBConn wake keywordResponses gId
+        , discordOnEnd = do
             echo "Bot has disconnected. Cleaning up..."
-            withDb threadSafeDBConn (\c -> SQL.close c),
-          discordGatewayIntent = def {gatewayIntentMessageContent = True}
+            withDb threadSafeDBConn (\c -> SQL.close c)
+        , discordGatewayIntent = def {gatewayIntentMessageContent = True}
         }
 
   echo $ "A fatal error occurred: " <> botTerminationError
 
--- EVENTS
---
+
+-- | This function receives every Discord event and decides what to do with it.
 onDiscordEvent :: DbConnection -- some bot interaction responses involve database reads/writes
                -> MVar () -- used to the prediction notifier when a new prediction is made
                -> [KeywordResponse]
@@ -106,6 +106,7 @@ onReady appId gId = do
            in forM_ outdatedIds $
                 restCall . R.DeleteGuildApplicationCommand appId gId
 
+
 -- | Only supports application commands currently. When someone uses an application command, the
 -- function tries to look it up in the list of the registered commands.
 -- Some application commands write to a database or wake up the prediction notifier.
@@ -121,6 +122,7 @@ onInteractionCreate dbconn wake = \case
           echo "Somehow got unknown slash command (registrations out of date?)"
   _ ->
     return () -- Unexpected/unsupported interaction type
+
 
 -- | When a message is created, check if it begins with one of the KeywordResponse keywords
 onMessageCreate :: [KeywordResponse] -> Message -> DiscordHandler ()
