@@ -13,6 +13,8 @@ import Discord.Interactions
 import qualified Discord.Requests as R
 import Discord.Types
 import Predictions (DbConnection, initPredictionTable, startNotifier, withDb)
+import Wagers (initWagerTable)
+import Currency (initCurrencyTable)
 import Responses
 import SlashCommands
 import UnliftIO (liftIO)
@@ -31,7 +33,10 @@ main = do
   conn <- SQL.open "appdata/database/data.db"
   threadSafeDBConn <- newMVar conn -- used to ensure only one thread can access the database at a time
   wake <- newEmptyMVar :: IO (MVar ()) -- used for waking up the prediction checker
+
   initPredictionTable conn -- see Predictions.hs. Creates the predictions table if it doesn't exist
+  initWagerTable conn
+  initCurrencyTable conn
 
   -- | Starts the discord bot.
   -- 1. discordOnStart: When the bot starts, we make a new thread that periodically checks the database for the next due

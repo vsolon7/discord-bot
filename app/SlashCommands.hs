@@ -19,6 +19,7 @@ import Utils
 import ArgumentTimer (setSavedTime, getTimeDiff, formatDiffTime)
 import Predictions
 import Wagers
+import Currency
 
 -- TODO: Create different slash command types? Not all slash commands need access to the database or
 -- the MVar used to wake the prediction notifier
@@ -53,7 +54,7 @@ basicSlashCommand name regDesc statefulText
 
 -- List of slash commands to register
 mySlashCommands :: [SlashCommand]
-mySlashCommands = [ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp, makePrediction, makeWager]
+mySlashCommands = [ping, getCurrTime, resetArgCounter, viewArgCounter, printGiantGlorp, makePrediction, makeWager, payCommand]
 
 
 ping :: SlashCommand
@@ -125,7 +126,7 @@ makePrediction :: SlashCommand
 makePrediction = SlashCommand
   { commandName = "predict"
   , commandRegistration = Just reg
-  , commandHandler = \conn wake intr _ -> do
+  , commandHandler = \dbconn wake intr _ -> do
       currTime <- liftIO getCurrentTime
       let iTok = interactionToken intr -- save the interaction token to get the message ID of the reply later
       let pcd = parsePredictionCommand currTime intr :: Either T.Text PredictionCommandData
@@ -151,7 +152,7 @@ makePrediction = SlashCommand
             Right msg -> do
               void . liftIO . forkIO $ do -- forkIO is probably not necessary.
                 let predictionData = PredictionData p (messageId msg)
-                savePrediction conn wake predictionData
+                savePrediction dbconn wake predictionData
             Left err -> echo $
               "Error acquiring the bot's prediction reply message.\
               \Discord sent the following error message:\n" <> showT err
@@ -205,7 +206,7 @@ makeWager :: SlashCommand
 makeWager = SlashCommand
   { commandName = "wager"
   , commandRegistration = Just reg
-  , commandHandler = \conn wake intr _ -> do
+  , commandHandler = \dbconn wake intr _ -> do
       currTime <- liftIO getCurrentTime
       let iTok = interactionToken intr -- save the interaction token to get the message ID of the reply later
       let pcd = parseWagerCommand currTime intr :: Either T.Text WagerCommandData
@@ -272,3 +273,50 @@ makeWager = SlashCommand
           Nothing
           (Just False)
 
+
+payCommand :: SlashCommand
+payCommand = SlashCommand
+  { commandName = "pay"
+  , commandRegistration = Just reg
+  , commandHandler = \dbconn wake intr _ -> do
+      let pcd = parsePayCommand intr :: Either T.Text PayCommandData
+      botReply <- liftIO (createPaymentResponse dbconn pcd)
+      -- Respond with the error or the correct reply
+      void . restCall $
+        R.CreateInteractionResponse
+          (interactionId intr)
+          (interactionToken intr)
+          botReply
+
+      -- TODO: Database stuff
+  }
+    where
+      reg = -- Command registration
+        CreateApplicationCommandChatInput
+          "pay"
+          Nothing
+          "Send currency to a user"
+          Nothing (
+            Just (
+              OptionsValues
+                [
+                  OptionValueUser
+                    "pay_to"
+                    Nothing
+                    "Who to send the currency to"
+                    Nothing
+                    True
+                , OptionValueNumber
+                    "amount"
+                    Nothing
+                    "Amount to send"
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 0)
+                    Nothing
+                ]
+              )
+            )
+          Nothing
+          (Just False)

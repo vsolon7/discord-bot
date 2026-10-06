@@ -60,20 +60,21 @@ instance SQL.ToRow AcceptedWager where
 
 
 initWagerTable :: SQL.Connection -> IO ()
-initWagerTable conn = SQL.execute_ conn
-  "CREATE TABLE IF NOT EXISTS wagers(\
-  \  id             INTEGER PRIMARY KEY,\
-  \  content        TEXT NOT NULL,\
-  \  bet_amount     FLOAT NOT NULL,\
-  \  wager_odds     FLOAT,\
-  \  due_at         INTEGER NOT NULL,\
-  \  offering_user  TEXT NOT NULL\
-  \  guild_id       TEXT NOT NULL,\
-  \  channel_id     TEXT NOT NULL,\
-  \  accepting_user TEXT NOT NULL,\
-  \  accepted_at    INTEGER NOT NULL,\
-  \  reply_mess_id  TEXT NOT NULL,\
-  \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
+initWagerTable conn =
+  SQL.execute_ conn
+    "CREATE TABLE IF NOT EXISTS wagers(\
+    \  id             INTEGER PRIMARY KEY,\
+    \  content        TEXT NOT NULL,\
+    \  bet_amount     REAL NOT NULL,\
+    \  wager_odds     REAL,\
+    \  due_at         INTEGER NOT NULL,\
+    \  offering_user  TEXT NOT NULL,\
+    \  guild_id       TEXT NOT NULL,\
+    \  channel_id     TEXT NOT NULL,\
+    \  accepting_user TEXT NOT NULL,\
+    \  accepted_at    INTEGER NOT NULL,\
+    \  reply_mess_id  TEXT NOT NULL,\
+    \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
 
 
 parseOddsInput :: String -> Maybe Rational
@@ -137,7 +138,7 @@ parseWagerCommand currTime (cmd@InteractionApplicationCommand { applicationComma
       , wagerChannel = cid
       }
 
-parseWagerCommand _ _ = Left "Tried to parse an interaction that is not a chat input slash command."
+parseWagerCommand _ _ = Left "Tried to parse an interaction that is not a chat input slash command when parsing the wager command."
 
 
 -- | Generate the bot reply. parsePredictionCommand returns either an error message or a record of the

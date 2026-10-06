@@ -103,18 +103,19 @@ safeHead _ (x:_) = x
 
 
 initPredictionTable :: SQL.Connection -> IO ()
-initPredictionTable conn = SQL.execute_ conn
-  "CREATE TABLE IF NOT EXISTS predictions(\
-  \  id             INTEGER PRIMARY KEY,\
-  \  content        TEXT NOT NULL,\
-  \  confidence     INTEGER,\
-  \  created_at     INTEGER NOT NULL,\
-  \  due_at         INTEGER NOT NULL,\
-  \  user_id        TEXT NOT NULL,\
-  \  guild_id       TEXT NOT NULL,\
-  \  channel_id     TEXT NOT NULL,\
-  \  reply_mess_id  TEXT NOT NULL,\
-  \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
+initPredictionTable conn =
+  SQL.execute_ conn
+    "CREATE TABLE IF NOT EXISTS predictions(\
+    \  id             INTEGER PRIMARY KEY,\
+    \  content        TEXT NOT NULL,\
+    \  confidence     INTEGER,\
+    \  created_at     INTEGER NOT NULL,\
+    \  due_at         INTEGER NOT NULL,\
+    \  user_id        TEXT NOT NULL,\
+    \  guild_id       TEXT NOT NULL,\
+    \  channel_id     TEXT NOT NULL,\
+    \  reply_mess_id  TEXT NOT NULL,\
+    \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
 
 
 getUserData :: MemberOrUser -> Maybe UserId
@@ -203,7 +204,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
         , predictionChannel = cid
         }
 
-parsePredictionCommand _ _ = Left "Tried to parse an interaction that is not a chat input slash command."
+parsePredictionCommand _ _ = Left "Tried to parse an interaction that is not a chat input slash command when parsing the prediction command."
 
 
 -- | Generate the bot reply. parsePredictionCommand returns either an error message or a record of the

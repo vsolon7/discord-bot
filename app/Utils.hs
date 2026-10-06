@@ -88,6 +88,12 @@ extractNumberOption optionName (OptionsDataValues vs) =
     (v:_) -> Just (toRealFloat v)
     _     -> Nothing
 
+extractUserOption :: T.Text -> OptionsData -> Maybe UserId
+extractUserOption _ (OptionsDataSubcommands _) = Nothing
+extractUserOption optionName (OptionsDataValues vs) =
+  case [uid | OptionDataValueUser n uid <- vs, n == optionName] of
+    (uid:_) -> Just uid
+    _     -> Nothing
 --
 -- JSON Parsing
 --

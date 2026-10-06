@@ -67,7 +67,8 @@ executable discord-bot
       Predictions,
       Responses,
       Utils,
-      Wagers
+      Wagers,
+      Currency
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
