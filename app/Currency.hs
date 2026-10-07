@@ -15,11 +15,16 @@ import qualified Database.SQLite.Simple.FromRow as SQL
 import qualified Database.SQLite.Simple.FromField as SQL
 import qualified Data.Text as T
 import Control.Concurrent (forkIO)
-import Control.Monad (void)
+import Control.Monad (void, forM)
 import Predictions
 import Utils (showT, extractNumberOption, extractUserOption, echo, ephemeralResponseBasic)
-import UnliftIO (liftIO)
+import UnliftIO (liftIO, Typeable)
 import Control.Monad.Reader (ask, runReaderT)
+import Data.Time (getCurrentTime)
+import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
+import Data.Word
+import Text.Read (readMaybe)
+import Data.Maybe (fromMaybe)
 
 data CurrencyUpdate = CurrencyUpdate
   { currencyUpdateUser :: UserId
@@ -38,7 +43,29 @@ data PayCommandData = PayCommandData
   } deriving Show
 
 data ViewCurrencyCommandData = ViewCurrencyCommandData
-  { viewCurrencyUser :: UserId }
+  { viewCurrencyUser :: UserId
+  } deriving Show
+
+data RecentUserActivity = RecentUserActivity
+  { recentActivityUserId :: UserId
+  , recentActivityMessages :: Maybe Integer
+  , recentActivityReacts :: Maybe Integer
+  } deriving Show
+
+data CurrencyDropResults = CurrencyDropResults
+  { currencyDropWinner :: Maybe CurrencyUpdate
+  , currencyDropEquity :: [CurrencyUpdate]
+  } deriving Show
+
+instance SQL.FromRow RecentUserActivity where
+  fromRow = RecentUserActivity <$> idField <*> SQL.field <*> SQL.field
+    where
+      idField :: Typeable a => SQL.RowParser (DiscordId a)
+      idField = SQL.fieldWith $ \f -> do
+        t <- SQL.fromField f :: SQL.Ok T.Text
+        case readMaybe (T.unpack t) :: Maybe Word64 of
+          Just w  -> pure (DiscordId (Snowflake w))
+          Nothing -> SQL.returnError SQL.ConversionFailed f "not a valid snowflake"
 
 
 initCurrencyTable :: SQL.Connection -> IO ()
@@ -47,6 +74,37 @@ initCurrencyTable conn =
     "CREATE TABLE IF NOT EXISTS currency(\
     \  user_id       TEXT PRIMARY KEY,\
     \  currency_amt  REAL NOT NULL) STRICT"
+
+
+initActivityTable :: SQL.Connection -> IO ()
+initActivityTable conn =
+  SQL.execute_ conn
+    "CREATE TABLE IF NOT EXISTS activity(\
+    \  guild_id         TEXT NOT NULL,\
+    \  user_id          TEXT NOT NULL,\
+    \  last_message_at  INTEGER,\
+    \  last_reaction_at INTEGER,\
+    \  num_messages     INTEGER,\
+    \  num_reactions    INTEGER,\
+    \  PRIMARY KEY      (guild_id, user_id)) STRICT"
+
+
+initPastCurrencyDropInfoTable :: SQL.Connection -> IO ()
+initPastCurrencyDropInfoTable conn =
+  SQL.execute_ conn
+    "CREATE TABLE IF NOT EXISTS past_drop_info(\
+    \  drop_number     INTEGER PRIMARY KEY,\
+    \  drop_time       INTEGER NOT NULL,\
+    \  drop_amount     INTEGER NOT NULL,\
+    \  drop_winner_uid TEXT NOT NULL,\
+    \  drop_winner_gid TEXT NOT NULL) STRICT"
+
+
+initCurrencyDropMetaTable :: SQL.Connection -> IO ()
+initCurrencyDropMetaTable conn = do
+  SQL.execute_ conn
+    "CREATE TABLE IF NOT EXISTS drop_meta(\
+    \  next_drop_at   INTEGER PRIMARY KEY) STRICT"
 
 
 updateCurrency :: DbConnection -> CurrencyUpdate -> IO ()
@@ -147,9 +205,33 @@ createViewCurrencyResponse dbconn vccd =
   Left err -> return (ephemeralResponseBasic err)
 
 
+updateReactionActivity :: DbConnection -> GuildId -> UserId -> UTCTime -> IO ()
+updateReactionActivity dbconn gid uid now = withDb dbconn $
+  \conn ->
+    SQL.executeNamed conn
+      "INSERT INTO activity (guild_id, user_id, last_reaction_at, num_reactions) VALUES (:gid, :uid, :now, 1)\
+      \ON CONFLICT(guild_id, user_id)\
+      \DO UPDATE SET last_reaction_at = :now, num_reactions = num_reactions + 1"
+      [ ":now" SQL.:= (formatUTCTime now), ":uid" SQL.:= (showT uid), ":gid" SQL.:= (showT gid) ]
+  where
+    formatUTCTime = toInteger . floor . utcTimeToPOSIXSeconds
 
-addCurrencyFromReaction :: DbConnection -> ReactionInfo -> DiscordHandler ()
-addCurrencyFromReaction dbconn reactInfo = do
+
+updateMessageActivity :: DbConnection -> GuildId -> UserId -> UTCTime -> IO ()
+updateMessageActivity dbconn gid uid now = withDb dbconn $
+  \conn ->
+    SQL.executeNamed conn
+      "INSERT INTO activity (guild_id, user_id, last_message_at, num_messages) VALUES (:gid, :uid, :now, 1)\
+      \ON CONFLICT(guild_id, user_id)\
+      \DO UPDATE SET last_message_at = :now, num_messages = num_messages + 1"
+      [ ":now" SQL.:= (formatUTCTime now), ":uid" SQL.:= (showT uid), ":gid" SQL.:= (showT gid) ]
+  where
+    formatUTCTime = toInteger . floor . utcTimeToPOSIXSeconds
+
+
+reactionHandler :: DbConnection -> ReactionInfo -> DiscordHandler ()
+reactionHandler dbconn reactInfo = do
+  now <- liftIO getCurrentTime
   h <- ask -- get the DiscordHandle so we can fork a new process to do the slow restCall and database reads
   void . liftIO . forkIO $ do
     originalMessage <-
@@ -175,6 +257,91 @@ addCurrencyFromReaction dbconn reactInfo = do
               -- you can't give yourself money by reacting to your message, and bots can't get money
               if (userId op == reactionUserId reactInfo || userIsBot op)
                 then return ()
-              else
+              else do
                 -- TODO: should different emojis give different amounts of currency?
-                updateCurrency dbconn (CurrencyUpdate (userId op) 1)
+                case messageGuildId message of
+                  Nothing -> echo $ "Failed to get guild ID of user when they reacted."
+                  Just gid -> updateReactionActivity dbconn gid (userId op) now
+
+
+createCurrencyDropMessage :: ChannelId -> CurrencyDropResults -> ChannelRequest Message
+createCurrencyDropMessage cid (CurrencyDropResults winnerChange otherChanges) =
+  let winnerStatement =
+        case winnerChange of
+          Nothing -> "There was no winner!"
+          Just wc -> "Winner: <@" <> (showT . currencyUpdateUser $ wc) <> ">: +" <> (showT . currencyUpdateAmount $ wc)
+      otherUpdate c = "<@" <> (showT . currencyUpdateUser $ c) <> ">: +" <> (showT . currencyUpdateAmount $ c)
+      otherUpdateStatement = T.concat [otherUpdate c <> "\n" | c <- otherChanges]
+      content =
+        "A currency drop happened!\n" <> winnerStatement <> "\n" <>
+        "Users with equity in the drop:" <> otherUpdateStatement
+  in
+    R.CreateMessage
+      cid
+      content
+
+
+payCurrencyDropWinner :: DbConnection -> UTCTime -> GuildId -> Double -> IO (Maybe CurrencyUpdate)
+payCurrencyDropWinner dbconn since gid jackpot = do
+  winner <- selectCurrencyDropWinner dbconn gid
+  case winner of
+    Nothing  -> return Nothing
+    Just wid -> do
+      let update = CurrencyUpdate wid jackpot
+      updateCurrency dbconn update
+      return $ Just update
+    where
+      formatUTCTime = toInteger . floor . utcTimeToPOSIXSeconds
+      selectCurrencyDropWinner :: DbConnection -> GuildId -> IO (Maybe UserId)
+      selectCurrencyDropWinner dbconn gid = withDb dbconn $
+        \conn -> do
+          winner <-
+            SQL.queryNamed conn
+              "SELECT user_id FROM activity \
+              \WHERE guild_id = :gid \
+              \AND (last_message_at > :lastdrop OR last_reaction_at > :lastdrop) \
+              \ORDER BY RANDOM() LIMIT 1"
+              [ ":gid" SQL.:= showT gid, ":lastdrop" SQL.:= formatUTCTime since ] :: IO [SQL.Only T.Text]
+          case winner of
+            [SQL.Only wid] -> return (read . T.unpack $ wid)
+            _              -> return Nothing
+
+
+computeCurrencyDropEquity :: [RecentUserActivity] -> [(UserId, Double)]
+computeCurrencyDropEquity rs =
+  let totalMessages = sum . map (fromMaybe 0 . recentActivityMessages) $ rs
+      totalReacts = sum . map (fromMaybe 0 . recentActivityReacts) $ rs
+      equity :: Integer -> Integer -> Double -> Double -> RecentUserActivity -> (UserId, Double)
+      equity totM totR mWeight rWeight r =
+        let mProp = (fromIntegral (fromMaybe 0 . recentActivityMessages $ r) / fromIntegral totM)
+            rProp = (fromIntegral (fromMaybe 0 . recentActivityMessages $ r) / fromIntegral totM)
+        in (recentActivityUserId r, mWeight * mProp + rWeight * rProp)
+  in map (equity totalMessages totalReacts 0.10 0.90) rs
+
+
+payCurrencyDropEquity :: DbConnection -> UTCTime -> GuildId -> Double -> IO [CurrencyUpdate]
+payCurrencyDropEquity dbconn since gid dropamt = do
+  ruas <- selectEligibleUsers dbconn gid
+  forM (computeCurrencyDropEquity ruas) $ \(uid, e) -> do
+    let update = CurrencyUpdate uid (e * dropamt)
+    updateCurrency dbconn update
+    return update
+  where
+    formatUTCTime = toInteger . floor . utcTimeToPOSIXSeconds
+    selectEligibleUsers :: DbConnection -> GuildId -> IO [RecentUserActivity]
+    selectEligibleUsers dbconn gid = withDb dbconn $
+      \conn -> do
+        ruas <- SQL.queryNamed conn
+          "SELECT user_id, num_messages, num_reactions FROM activity \
+          \WHERE guild_id := gid \
+          \AND (last_message_at > :lastdrop OR last_reaction_at > :lastdrop)"
+          [ ":gid" SQL.:= showT gid, ":lastdrop" SQL.:= formatUTCTime since ] :: IO [RecentUserActivity]
+        return ruas
+
+
+doCurrencyDrop :: DbConnection -> UTCTime -> GuildId -> Double -> IO CurrencyDropResults
+doCurrencyDrop dbconn since gid dropTotal = do
+  winnerUpdate <- payCurrencyDropWinner dbconn since gid (0.3 * dropTotal)
+  equityUpdates <- payCurrencyDropEquity dbconn since gid (0.7 * dropTotal)
+  return $ CurrencyDropResults winnerUpdate equityUpdates
+

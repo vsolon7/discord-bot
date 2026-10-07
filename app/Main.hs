@@ -14,7 +14,8 @@ import qualified Discord.Requests as R
 import Discord.Types
 import Predictions (DbConnection, initPredictionTable, startNotifier, withDb)
 import Wagers (initWagerTable)
-import Currency (initCurrencyTable, addCurrencyFromReaction)
+import Currency (initCurrencyTable, initActivityTable, initPastCurrencyDropInfoTable, initCurrencyDropMetaTable, reactionHandler, updateMessageActivity)
+import Data.Time (getCurrentTime)
 import Responses
 import SlashCommands
 import UnliftIO (liftIO)
@@ -36,23 +37,24 @@ main = do
   initPredictionTable conn -- see Predictions.hs. Creates the predictions table if it doesn't exist
   initWagerTable conn
   initCurrencyTable conn
+  initActivityTable conn
+  initPastCurrencyDropInfoTable conn
+  initCurrencyDropMetaTable conn
 
   -- | Starts the discord bot.
   -- 1. discordOnStart: When the bot starts, we make a new thread that periodically checks the database for the next due
-  -- prediction and sends a reply when it occurs. This requires us to smuggle out the discord handle so that our new
-  -- thread has access to the connection. Future functionality might result in smuggling the handle out to more threads.
-  -- 2. discordOnEvent: The bot continuously listens for new discord events. Every event it receives, it passes to the
-  -- onDiscordEvent function. This function takes in the database connection and the wake MVar because some of the
-  -- events (i.e., application commands) will result in writing to the database and/or waking up the prediction
-  -- notifier (when a new prediction is added).
+  -- prediction and sends a reply when it occurs.
+  -- 2. discordOnEvent: The bot continuously listens for new discord events. Every time it receives a new event, it
+  -- forks a new thread and passes the event to the onDiscordEvent function. This function takes in the database
+  -- connection and the wake MVar because some of the events (i.e., application commands) will result in writing to
+  -- the database and/or waking up the prediction notifier (when a new prediction is added).
   -- 3. discordOnEnd: When the bot is terminated, we close the database connection.
   botTerminationError <-
     runDiscord $
       def
         { discordToken = tok
         , discordOnStart = do
-            h <- ask -- smuggle the connection out!
-            liftIO (startNotifier threadSafeDBConn wake h)
+            startNotifier threadSafeDBConn wake
         , discordOnEvent = onDiscordEvent threadSafeDBConn wake keywordResponses gId
         , discordOnEnd = do
             echo "Bot has disconnected. Cleaning up..."
@@ -73,8 +75,8 @@ onDiscordEvent :: DbConnection -- some bot interaction responses involve databas
 onDiscordEvent dbconn wake resList gId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId gId
   InteractionCreate intr -> onInteractionCreate dbconn wake intr
-  MessageCreate mess -> onMessageCreate resList mess
-  MessageReactionAdd info -> addCurrencyFromReaction dbconn info
+  MessageCreate mess -> onMessageCreate dbconn resList mess
+  MessageReactionAdd info -> reactionHandler dbconn info
   _ -> return ()
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
@@ -130,11 +132,19 @@ onInteractionCreate dbconn wake = \case
 
 
 -- When a message is created, check if it begins with one of the KeywordResponse keywords
-onMessageCreate :: [KeywordResponse] -> Message -> DiscordHandler ()
-onMessageCreate resList mess = case (fromBot mess) of
-  True -> return ()
-  _ ->
+onMessageCreate :: DbConnection -> [KeywordResponse] -> Message -> DiscordHandler ()
+onMessageCreate dbconn resList mess =
+  if fromBot mess
+    then return ()
+  else do
     case find (\res -> mess `startsWith` (responseKeyword . responseData $ res)) resList of
       Just found ->
         responseHandler found mess
       _ -> return ()
+    liftIO $ do
+      now <- getCurrentTime
+      case messageGuildId mess of
+        Nothing  -> echo $ "Failed to get guild ID of message author when a message was sent."
+        Just gid -> updateMessageActivity dbconn gid (userId . messageAuthor $ mess) now
+
+
