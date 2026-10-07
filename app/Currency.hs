@@ -48,8 +48,8 @@ data ViewCurrencyCommandData = ViewCurrencyCommandData
 
 data RecentUserActivity = RecentUserActivity
   { recentActivityUserId :: UserId
-  , recentActivityMessages :: Maybe Integer
-  , recentActivityReacts :: Maybe Integer
+  , recentActivityMessages :: Integer
+  , recentActivityReacts :: Integer
   } deriving Show
 
 data CurrencyDropResults = CurrencyDropResults
@@ -84,8 +84,8 @@ initActivityTable conn =
     \  user_id          TEXT NOT NULL,\
     \  last_message_at  INTEGER,\
     \  last_reaction_at INTEGER,\
-    \  num_messages     INTEGER,\
-    \  num_reactions    INTEGER,\
+    \  num_messages     INTEGER NOT NULL DEFAULT 0,\
+    \  num_reactions    INTEGER NOT NULL DEFAULT 0,\
     \  PRIMARY KEY      (guild_id, user_id)) STRICT"
 
 
@@ -308,12 +308,12 @@ payCurrencyDropWinner dbconn since gid jackpot = do
 
 computeCurrencyDropEquity :: [RecentUserActivity] -> [(UserId, Double)]
 computeCurrencyDropEquity rs =
-  let totalMessages = sum . map (fromMaybe 0 . recentActivityMessages) $ rs
-      totalReacts = sum . map (fromMaybe 0 . recentActivityReacts) $ rs
+  let totalMessages = sum . map recentActivityMessages $ rs
+      totalReacts = sum . map recentActivityReacts $ rs
       equity :: Integer -> Integer -> Double -> Double -> RecentUserActivity -> (UserId, Double)
       equity totM totR mWeight rWeight r =
-        let mProp = (fromIntegral (fromMaybe 0 . recentActivityMessages $ r) / fromIntegral totM)
-            rProp = (fromIntegral (fromMaybe 0 . recentActivityMessages $ r) / fromIntegral totM)
+        let mProp = (fromIntegral (recentActivityMessages r) / fromIntegral totM)
+            rProp = (fromIntegral (recentActivityMessages r) / fromIntegral totM)
         in (recentActivityUserId r, mWeight * mProp + rWeight * rProp)
   in map (equity totalMessages totalReacts 0.10 0.90) rs
 
