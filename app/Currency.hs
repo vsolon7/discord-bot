@@ -229,8 +229,8 @@ updateMessageActivity dbconn gid uid now = withDb dbconn $
     formatUTCTime = toInteger . floor . utcTimeToPOSIXSeconds
 
 
-reactionHandler :: DbConnection -> ReactionInfo -> DiscordHandler ()
-reactionHandler dbconn reactInfo = do
+reactionHandler :: DbConnection -> GuildId -> ReactionInfo -> DiscordHandler ()
+reactionHandler dbconn gid reactInfo = do
   now <- liftIO getCurrentTime
   h <- ask -- get the DiscordHandle so we can fork a new process to do the slow restCall and database reads
   void . liftIO . forkIO $ do
@@ -259,9 +259,8 @@ reactionHandler dbconn reactInfo = do
                 then return ()
               else do
                 -- TODO: should different emojis give different amounts of currency?
-                case messageGuildId message of
-                  Nothing -> echo $ "Failed to get guild ID of user when they reacted."
-                  Just gid -> updateReactionActivity dbconn gid (userId op) now
+                  updateReactionActivity dbconn gid (userId op) now
+                  updateCurrency dbconn (CurrencyUpdate (userId op) 1)
 
 
 createCurrencyDropMessage :: ChannelId -> CurrencyDropResults -> ChannelRequest Message

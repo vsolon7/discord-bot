@@ -76,7 +76,7 @@ onDiscordEvent dbconn wake resList gId = \case
   Ready _ _ _ _ _ _ (PartialApplication appId _) -> onReady appId gId
   InteractionCreate intr -> onInteractionCreate dbconn wake intr
   MessageCreate mess -> onMessageCreate dbconn resList mess
-  MessageReactionAdd info -> reactionHandler dbconn info
+  MessageReactionAdd info -> reactionHandler dbconn gId info
   _ -> return ()
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
