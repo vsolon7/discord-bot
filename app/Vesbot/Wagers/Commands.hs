@@ -1,80 +1,23 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Wagers where
+module Vesbot.Wagers.Commands where
 
 import Discord
 import Discord.Types
-import Discord.Handle
-import Discord.Handle
-import Discord.Internal.Rest.Channel
 import Discord.Internal.Types.Interactions
+import Discord.Internal.Types.ApplicationCommands
 import qualified Discord.Requests as R
-import qualified Data.Text as T
-import qualified Database.SQLite.Simple as SQL
-import qualified Database.SQLite.Simple.Internal as SQL
-import qualified Database.SQLite.Simple.Ok as SQL
-import qualified Database.SQLite.Simple.FromRow as SQL
-import qualified Database.SQLite.Simple.FromField as SQL
-import Data.Time.Format (defaultTimeLocale, parseTimeM, formatTime)
-import Data.Time.Clock (getCurrentTime, addUTCTime, diffUTCTime, NominalDiffTime)
-import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds, posixSecondsToUTCTime)
-import Data.Time.Calendar (Day)
-import Data.Time.LocalTime
+import Data.Time
 import Data.Ratio
-import Predictions (getUserData, parseDateInput, maybeToEither)
-import Utils (extractStringOption, extractIntegerOption, extractNumberOption, showT, ephemeralResponseBasic)
-import Data.Maybe (fromMaybe)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad (void)
 import Data.Char (isDigit)
+import qualified Data.Text as T
 
-data WagerCommandData = WagerCommandData
-  { wagerContent :: T.Text
-  , wagerBet :: Double
-  , wagerOdds :: Maybe Rational
-  , wagerDueDate :: UTCTime
-  , wagerOfferingUserId :: UserId
-  , wagerGuild :: GuildId
-  , wagerChannel :: ChannelId
-  } deriving Show
-
-data AcceptedWager = AcceptedWager
-  { wagerCommandData :: WagerCommandData
-  , wagerAcceptingUser :: UserId
-  , wagerAcceptedDate :: UTCTime
-  , wagerOfferMessageId :: MessageId
-  } deriving Show
-
-instance SQL.ToRow AcceptedWager where
-  toRow (AcceptedWager initialOffer taker acceptDate wmid) =
-    [ SQL.SQLText (wagerContent initialOffer)
-    , SQL.SQLFloat (wagerBet initialOffer)
-    , fromMaybe SQL.SQLNull (fmap (SQL.SQLFloat . fromRational) (wagerOdds initialOffer))
-    , SQL.SQLText (showT . formatUTC . wagerDueDate $ initialOffer)
-    , SQL.SQLText (showT . wagerOfferingUserId $ initialOffer)
-    , SQL.SQLText (showT . wagerGuild $ initialOffer)
-    , SQL.SQLText (showT . wagerChannel $ initialOffer)
-    , SQL.SQLText (showT taker)
-    , SQL.SQLText (showT acceptDate)
-    , SQL.SQLText (showT wmid)
-    ]
-      where
-        formatUTC t = fromInteger . ceiling . utcTimeToPOSIXSeconds $ t
-
-
-initWagerTable :: SQL.Connection -> IO ()
-initWagerTable conn =
-  SQL.execute_ conn
-    "CREATE TABLE IF NOT EXISTS wagers(\
-    \  id             INTEGER PRIMARY KEY,\
-    \  content        TEXT NOT NULL,\
-    \  bet_amount     REAL NOT NULL,\
-    \  wager_odds     REAL,\
-    \  due_at         INTEGER NOT NULL,\
-    \  offering_user  TEXT NOT NULL,\
-    \  guild_id       TEXT NOT NULL,\
-    \  channel_id     TEXT NOT NULL,\
-    \  accepting_user TEXT NOT NULL,\
-    \  accepted_at    INTEGER NOT NULL,\
-    \  reply_mess_id  TEXT NOT NULL,\
-    \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
+import Vesbot.Utils
+import Vesbot.Parsing.Time
+import Vesbot.Wagers.Types
+import Vesbot.Wagers.Database
+import Vesbot.SlashCommands.Types
 
 
 parseOddsInput :: String -> Maybe Rational
@@ -151,7 +94,7 @@ createInitialWagerResponse currTime wcd =
       if currTime < wagerDueDate w then
         let
           userPing = "<@" <> showT (wagerOfferingUserId w) <> ">"
-          dueDateUTC = showT . ceiling . utcTimeToPOSIXSeconds $ wagerDueDate w
+          dueDateUTC = showT . formatUTCTime $ wagerDueDate w
           dueDateTimeStampRel = "<t:" <> dueDateUTC <> ":R>"
           dueDateTimeStampAbs = "<t:" <> dueDateUTC <> ":f>"
           oddsText = case wagerOdds w of
@@ -183,3 +126,75 @@ createInitialWagerResponse currTime wcd =
           ButtonStylePrimary
           (Just "Accept Wager")
           Nothing
+
+
+makeWager :: SlashCommand
+makeWager = SlashCommand
+  { commandName = "wager"
+  , commandRegistration = Just reg
+  , commandHandler = \dbconn wake intr _ -> do
+      currTime <- liftIO getCurrentTime
+      let iTok = interactionToken intr -- save the interaction token to get the message ID of the reply later
+      let pcd = parseWagerCommand currTime intr :: Either T.Text WagerCommandData
+      let botReply = createInitialWagerResponse currTime pcd
+
+      -- Respond with the error or the correct reply
+      void . restCall $
+        R.CreateInteractionResponse
+          (interactionId intr)
+          (interactionToken intr)
+          botReply
+
+      -- TODO: Database stuff
+  }
+    where
+      reg = -- Command registration
+        CreateApplicationCommandChatInput
+          "wager"
+          Nothing
+          "Offer a wager!"
+          Nothing (
+            Just (
+              OptionsValues
+                [
+                  OptionValueString
+                    "claim"
+                    Nothing
+                    "What you are betting will happen"
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueString
+                    "date"
+                    Nothing
+                    "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\""
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueNumber
+                    "amount"
+                    Nothing
+                    "Amount of currency you're betting"
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 0)
+                    Nothing
+                , OptionValueString
+                    "odds"
+                    Nothing
+                    "(Optional) odds you're giving"
+                    Nothing
+                    False
+                    (Left False)
+                    (Just 3)
+                    Nothing
+                ]
+              )
+            )
+          Nothing
+          (Just False)

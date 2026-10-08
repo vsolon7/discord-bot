@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Responses where
+module Vesbot.Responses where
 
 import qualified Data.Text as T
 import qualified Data.Aeson as AE

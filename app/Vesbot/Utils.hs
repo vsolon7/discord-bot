@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Utils where
+module Vesbot.Utils where
 
 import Data.List (mapAccumL)
 import Data.Text (Text)
@@ -42,6 +42,14 @@ fromBot = userIsBot . messageAuthor
 startsWith :: Message -> Text -> Bool
 startsWith mess t = t `T.isPrefixOf` (T.toLower . messageContent $ mess)
 
+maybeToEither :: a -> Maybe b -> Either a b
+maybeToEither err Nothing = Left err
+maybeToEither _ (Just x) = Right x
+
+safeHead :: a -> [a] -> a
+safeHead def [] = def
+safeHead _ (x:_) = x
+
 --
 -- API related utilities
 --
@@ -55,6 +63,22 @@ getGuildId = do
   case readMaybe gids of
     Just g -> return g
     Nothing -> error "Could not read guild id from `apidata/guildid`"
+
+-- Helper function that extracts the UserId from a MemberOrUser type
+getUserData :: MemberOrUser -> Maybe UserId
+getUserData (
+  MemberOrUser (
+    Left (
+      GuildMember
+        { memberUser = Just (
+            User { userId = uid }
+          )
+        }
+      )
+    )
+  ) = Just uid
+
+getUserData _ = Nothing
 
 -- | Given the test server and an action operating on a channel id, get the
 -- first text channel of that server and use the action on that channel.
@@ -104,6 +128,7 @@ makeEphemeral mess =
       }
 
 ephemeralResponseBasic t = makeEphemeral . interactionResponseMessageBasic $ t
+
 --
 -- JSON Parsing
 --

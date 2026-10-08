@@ -12,14 +12,18 @@ import Discord
 import Discord.Interactions
 import qualified Discord.Requests as R
 import Discord.Types
-import Predictions (DbConnection, initPredictionTable, startNotifier, withDb)
-import Wagers (initWagerTable)
-import Currency (initCurrencyTable, initActivityTable, initPastCurrencyDropInfoTable, initCurrencyDropMetaTable, reactionHandler, updateMessageActivity)
+import Vesbot.Predictions
+import Vesbot.Wagers
+import Vesbot.Currency
 import Data.Time (getCurrentTime)
-import Responses
-import SlashCommands
+import Vesbot.Responses
+import Vesbot.SlashCommands
 import UnliftIO (liftIO)
-import Utils
+import Vesbot.Utils
+import Vesbot.Database
+import Vesbot.Handler.Reactions
+import Vesbot.Handler.Messages
+
 
 main :: IO ()
 main = do
@@ -141,10 +145,10 @@ onMessageCreate dbconn resList mess =
       Just found ->
         responseHandler found mess
       _ -> return ()
-    liftIO $ do
-      now <- getCurrentTime
-      case messageGuildId mess of
-        Nothing  -> echo $ "Failed to get guild ID of message author when a message was sent."
-        Just gid -> updateMessageActivity dbconn gid (userId . messageAuthor $ mess) now
+    now <- liftIO $ getCurrentTime
+    case messageGuildId mess of
+      Nothing  -> echo $ "Failed to get guild ID of message author when a message was sent."
+      Just gid -> do
+        liftIO $ updateMessageActivity dbconn gid (userId . messageAuthor $ mess) now
 
 

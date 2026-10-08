@@ -1,11 +1,11 @@
-module ArgumentTimer where
+module Vesbot.ArgumentTimer where
 
+import Data.Time
+import Vesbot.Utils
+import Data.List
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import qualified Data.ByteString as BS
-import Data.Time
-import Utils
-import Data.List
+
 
 getSavedTime :: FilePath -> IO UTCTime
 getSavedTime path = do
