@@ -1,0 +1,5 @@
+dist-newstyle/build/
+dist-newstyle/cache/
+dist-newstyle/packagedb/
+dist-newstyle/tmp/
+appdata/database/data.db

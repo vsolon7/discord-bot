@@ -1,17 +1,21 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Vesbot.Responses where
+module Vesbot.Responses
+  ( KeywordResponse
+  , initKeywordResponses
+  ) where
 
-import qualified Data.Text as T
-import qualified Data.Aeson as AE
+import Vesbot.Utils (void, threadDelay, liftIO, parseJSON)
+
 import Discord
 import Discord.Types
-import Discord.Interactions
 import qualified Discord.Requests as R
+
+import qualified Data.Text as T
+import qualified Data.Aeson as A
+
 import GHC.Generics (Generic)
-import Control.Monad (void)
-import Control.Concurrent (threadDelay)
-import Control.Monad.IO.Class (liftIO)
+
 
 data KeywordResponseData = KeywordResponseData
   { responseName :: T.Text
@@ -20,7 +24,7 @@ data KeywordResponseData = KeywordResponseData
   , responseOutput :: T.Text
   } deriving (Generic, Show)
 
-instance AE.FromJSON KeywordResponseData
+instance A.FromJSON KeywordResponseData
 
 data KeywordResponse = KeywordResponse
   { responseData :: KeywordResponseData
@@ -33,18 +37,30 @@ createKeywordResponse res = KeywordResponse
   { responseData = res
   , responseHandler = \mess -> do
       case (responseEmoji res) of
-        "null" -> return ()
-        _      -> do
+        "" -> return ()
+        _  -> do
           void . restCall $
             R.CreateReaction
               (messageChannelId mess, messageId mess)
               (responseEmoji res)
           liftIO . threadDelay $ 100000
       case (responseOutput res) of
-        "null" -> return ()
-        txt    -> do
+        ""      -> return ()
+        content -> do
+          let replyMessRef =
+                MessageReference (Just (messageId mess)) (Just (messageChannelId mess)) (messageGuildId mess) False
+              replyMessOpts =
+                R.MessageDetailedOpts content False Nothing Nothing [] Nothing (Just replyMessRef) Nothing Nothing
           void . restCall $
-            R.CreateMessage
+            R.CreateMessageDetailed
               (messageChannelId mess)
-              txt
+              replyMessOpts
   }
+
+
+initKeywordResponses :: FilePath -> IO [KeywordResponse]
+initKeywordResponses krFile = do
+  krd <- parseJSON krFile :: IO (Maybe [KeywordResponseData])
+  case krd of
+    Nothing -> return []
+    Just res -> return (map createKeywordResponse res)
