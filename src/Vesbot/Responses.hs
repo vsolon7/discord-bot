@@ -2,7 +2,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Responses
   ( KeywordResponse
+  , KeywordResponseData
   , initKeywordResponses
+  , responseName
+  , responseKeyword
+  , responseEmoji
+  , responseOutput
+  , responseData
+  , responseHandler
   ) where
 
 import Vesbot.Utils (void, threadDelay, liftIO, parseJSON)

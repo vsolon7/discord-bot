@@ -24,7 +24,7 @@ eventHandler cfg env =
     case event of
       Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady appid (cfgGuildId cfg)
       InteractionCreate intr  -> interactionHandler cfg (envDBConnection env) intr
-      MessageCreate mess      -> messageHandler cfg (envDBConnection env) mess
+      MessageCreate mess      -> messageHandler cfg env mess
       MessageReactionAdd info -> return ()
       _                       -> return ()
 
