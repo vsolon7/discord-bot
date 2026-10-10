@@ -5,14 +5,14 @@ module Vesbot.Config
   , cfgGuildId
   , envDBConnection
   , envResponses
-  , envNotifierControl
+  , envNotifications
   , initBot
   ) where
 
 import Vesbot.Responses as Responses (KeywordResponse, initKeywordResponses)
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Database as Database (initDBConnection)
-import Vesbot.Notifications.Types as Notifier (NotifierControl)
+import Vesbot.Notifications.Types (NotificationsEnv(..), Waker(..))
 
 import Discord.Types
 
@@ -26,17 +26,21 @@ data Config = Config
   { cfgApiToken :: T.Text
   , cfgGuildId :: GuildId
   }
-  
+
+
 data InitialEnv = InitialEnv
   { envDBConnection :: DBConnection
   , envResponses :: [KeywordResponse]
-  , envNotifierControl :: NotifierControl
+  , envNotifications :: NotificationsEnv
   }
+
 
 _DATABASE_FILE :: FilePath
 _DATABASE_FILE = "appdata/database/data.db"
 _RESPONSES_FILE :: FilePath
 _RESPONSES_FILE = "appdata/json/responses.json"
+_HOLIDAYS_FILE :: FilePath
+_HOLIDAYS_FILE = "appdata/json/holidays.json"
 
 
 getToken :: IO T.Text
@@ -59,9 +63,10 @@ initBot = do
   krs <- Responses.initKeywordResponses _RESPONSES_FILE
   conn <- Database.initDBConnection _DATABASE_FILE
 
-  controller <- newEmptyMVar :: IO NotifierControl
+  waker <- Waker <$> newEmptyMVar :: IO Waker
+  let notificationEnv = NotificationsEnv conn waker
  
-  return (InitialEnv conn krs controller, Config t gid)
+  return (InitialEnv conn krs notificationEnv, Config t gid)
 
 
 

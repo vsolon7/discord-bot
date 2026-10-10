@@ -20,7 +20,7 @@ import Discord.Types
 import qualified Discord.Requests as R
 
 import qualified Data.Text as T
-import qualified Data.Aeson as A
+import qualified Data.Aeson as AE
 
 import GHC.Generics (Generic)
 
@@ -32,7 +32,7 @@ data KeywordResponseData = KeywordResponseData
   , responseOutput :: T.Text
   } deriving (Generic, Show)
 
-instance A.FromJSON KeywordResponseData
+instance AE.FromJSON KeywordResponseData
 
 data KeywordResponse = KeywordResponse
   { responseData :: KeywordResponseData

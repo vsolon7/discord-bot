@@ -1,17 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Notifications.Database
   ( initTable
-  , saveNotification
   , getDueNotifications
   , getNextNotificationTime
   ) where
 
-import Vesbot.Utils (showT)
-import Vesbot.Parsing (intToUTC, utcToInt)
+import Vesbot.Parsing (intToUTC)
 import Vesbot.Database.Types (DBConnection, withDB)
-import Vesbot.Notifications.Types (Notification)
+import Vesbot.Notifications.Types (NotificationDataInternal, NotificationsEnv(..), nudge)
 
-import Data.Time (UTCTime, getCurrentTime)
+import Data.Time (UTCTime)
 import Data.Int (Int64)
 import qualified Database.SQLite.Simple as SQL
 
@@ -21,22 +19,14 @@ initTable dbconn = withDB dbconn $
   \conn -> do
     SQL.execute_ conn
       "CREATE TABLE IF NOT EXISTS notifications(\
-      \  id              INTEGER PRIMARY KEY,\
-      \  channel_id      TEXT NOT NULL,\
-      \  message_content TEXT NOT NULL,\
-      \  message_reply   TEXT,\
-      \  created_at      INTEGER NOT NULL,\
-      \  due_at          INTEGER NOT NULL,\
-      \  notified        INTEGER NOT NULL DEFAULT 0) STRICT"
-
-
-saveNotification :: DBConnection -> Notification -> IO ()
-saveNotification dbconn n = withDB dbconn $
-  \conn -> do
-    SQL.execute conn q n
-  where
-    q = "INSERT INTO notifications (channel_id, message_content, message_reply, created_at, due_at) \
-        \VALUES (?, ?, ?, ?, ?)"
+      \  id               INTEGER PRIMARY KEY,\
+      \  uid              TEXT,\
+      \  channel_id       TEXT NOT NULL,\
+      \  message_content  TEXT NOT NULL,\
+      \  reply_id         TEXT,\
+      \  due_at           INTEGER NOT NULL,\
+      \  type             TEXT,\
+      \  notified         INTEGER NOT NULL DEFAULT 0) STRICT"
 
 
 getNextNotificationTime :: DBConnection -> IO (Maybe UTCTime)
@@ -53,14 +43,13 @@ getNextNotificationTime dbconn = withDB dbconn $
       \WHERE notified = 0"
 
 
-getDueNotifications :: DBConnection -> UTCTime -> IO [Notification]
+getDueNotifications :: DBConnection -> UTCTime -> IO [NotificationDataInternal]
 getDueNotifications dbconn now = withDB dbconn $
   \conn -> do
-    now <- getCurrentTime
     ns <- SQL.query conn q [now]
     return ns
   where
     q =
       "UPDATE notifications SET notified = 1 \
       \WHERE notified = 0 AND due_at <= ? \
-      \RETURNING (channel_id, message_content, message_reply, created_at, due_at)"
+      \RETURNING (name, channel_id, message_content, message_reply, created_at, due_at)"

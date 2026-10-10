@@ -3,7 +3,7 @@ module Main (main) where
 
 import Vesbot.Handler as Handler (eventHandler)
 import Vesbot.Logging as Logging (echo)
-import Vesbot.Config as Config (initBot, cfgApiToken, envDBConnection, envNotifierControl)
+import Vesbot.Config as Config (initBot, cfgApiToken, envNotifications)
 import Vesbot.Notifications as Notifications (startNotifier)
 
 import Discord
@@ -19,7 +19,7 @@ main = do
       def
         { discordToken = cfgApiToken cfg
         , discordForkThreadForEvents = True
-        , discordOnStart = Notifications.startNotifier (envDBConnection env) (envNotifierControl env)
+        , discordOnStart = Notifications.startNotifier (envNotifications env)
         , discordOnEvent = Handler.eventHandler cfg env
         , discordOnLog = Logging.echo
         , discordOnEnd = do

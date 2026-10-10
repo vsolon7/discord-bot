@@ -42,7 +42,10 @@ library
     Vesbot.ArgumentTimer.Database,
     Vesbot.ArgumentTimer.Commands,
     Vesbot.Notifications.Types,
-    Vesbot.Notifications.Database
+    Vesbot.Notifications.Database,
+    Vesbot.Holidays,
+    Vesbot.Holidays.Types,
+    Vesbot.Holidays.Database
   build-depends:
     base ^>= 4.21.0.0,
     discord-haskell == 1.19.0,
