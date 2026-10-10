@@ -9,7 +9,6 @@ module Vesbot.Utils
   , fromBot
   , showT
   , find
-  , parseJSON
   ) where
 
 import Vesbot.Logging as Logging (echo)
@@ -35,14 +34,3 @@ showT = T.show
 
 fromBot :: Message -> Bool
 fromBot = userIsBot . messageAuthor
-
-
-parseJSON :: A.FromJSON a => FilePath -> IO (Maybe a)
-parseJSON path = do
-  jsonData <- BS.readFile path
-  let decoded = A.decodeStrict jsonData
-  case decoded of
-    Nothing -> do
-      Logging.echo $ "Error parsing the JSON Data in " <> T.pack path <> "."
-      return Nothing
-    Just d  -> return (Just d)

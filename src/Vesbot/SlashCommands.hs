@@ -8,6 +8,10 @@ module Vesbot.SlashCommands
   ) where
 
 import Vesbot.Utils (liftIO, void, showT)
+import Vesbot.Database.Types (DBConnection)
+import Vesbot.SlashCommands.Types
+
+import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
 
 import Discord
 import Discord.Internal.Types.ApplicationCommands
@@ -16,19 +20,8 @@ import qualified Discord.Requests as R
 
 import qualified Data.Text as T
 import Data.Time (getCurrentTime)
+ 
 
-
--- TODO: Create different slash command types? Not all slash commands need access to the database or
--- the MVar used to wake the prediction notifier
-data SlashCommand = SlashCommand
-  { commandName :: T.Text
-  , commandRegistration :: Maybe CreateApplicationCommand
-  , commandHandler :: Interaction
-                   -> Maybe OptionsData
-                   -> DiscordHandler ()
-  }
-  
-  
 -- | Constructor for a basic slash command with no options.
 -- it just replies with some text that is the result of running IO actions.
 basicSlashCommand :: T.Text    -> -- Slash Command Name
@@ -49,11 +42,13 @@ basicSlashCommand name regDesc statefulText
     }
 
 
-slashCommands :: [SlashCommand]
-slashCommands =
+slashCommands :: DBConnection -> [SlashCommand]
+slashCommands dbconn =
   [ ping
   , time
   , glorp
+  , viewAC dbconn
+  , resetAC dbconn
   ]
 
 

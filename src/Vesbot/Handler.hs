@@ -2,6 +2,7 @@
 module Vesbot.Handler where
 
 import Vesbot.Utils (showT, forM_)
+import Vesbot.Database.Types (DBConnection)
 import Vesbot.Logging as Logging (echo)
 import Vesbot.Config as Config (InitialEnv, Config, cfgGuildId, envDBConnection)
 import Vesbot.Handler.Interactions (interactionHandler)
@@ -22,7 +23,7 @@ eventHandler :: Config
 eventHandler cfg env =
   \event ->
     case event of
-      Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady appid (cfgGuildId cfg)
+      Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady (envDBConnection env) appid (cfgGuildId cfg)
       InteractionCreate intr  -> interactionHandler cfg (envDBConnection env) intr
       MessageCreate mess      -> messageHandler cfg env mess
       MessageReactionAdd info -> return ()
@@ -30,11 +31,11 @@ eventHandler cfg env =
 
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
-onReady :: ApplicationId -> GuildId -> DiscordHandler ()
-onReady appId gId = do
+onReady :: DBConnection -> ApplicationId -> GuildId -> DiscordHandler ()
+onReady dbconn appId gId = do
   Logging.echo "Bot ready!"
 
-  appCmdRegistrations <- mapM tryRegistering SC.slashCommands
+  appCmdRegistrations <- mapM tryRegistering (SC.slashCommands dbconn)
 
   case sequence appCmdRegistrations of
     Left err ->

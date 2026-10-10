@@ -5,7 +5,7 @@ module Vesbot.Handler.Interactions
 
 import Vesbot.Config (Config)
 import Vesbot.Utils (find)
-import Vesbot.Database (DBConnection)
+import Vesbot.Database.Types (DBConnection)
 import Vesbot.Logging as Logging (echo)
 import Vesbot.SlashCommands as SC
 
@@ -20,7 +20,7 @@ interactionHandler cfg dbconn =
     cmd@InteractionApplicationCommand
       { applicationCommandData = input@ApplicationCommandDataChatInput {}
       } ->
-        case find (\c -> applicationCommandDataName input == commandName c) SC.slashCommands of
+        case find (\c -> applicationCommandDataName input == commandName c) (SC.slashCommands dbconn) of
           Just found -> do
             (SC.commandHandler found) cmd (optionsData input)
           Nothing ->

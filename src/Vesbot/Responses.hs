@@ -12,7 +12,8 @@ module Vesbot.Responses
   , responseHandler
   ) where
 
-import Vesbot.Utils (void, threadDelay, liftIO, parseJSON)
+import Vesbot.Utils (void, threadDelay, liftIO)
+import Vesbot.Parsing (parseJSON)
 
 import Discord
 import Discord.Types

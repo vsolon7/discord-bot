@@ -5,15 +5,19 @@ module Vesbot.Config
   , cfgGuildId
   , envDBConnection
   , envResponses
+  , envNotifierControl
   , initBot
   ) where
 
 import Vesbot.Responses as Responses (KeywordResponse, initKeywordResponses)
-import Vesbot.Database as Database (DBConnection, initDBConnection)
+import Vesbot.Database.Types (DBConnection)
+import Vesbot.Database as Database (initDBConnection)
+import Vesbot.Notifications.Types as Notifier (NotifierControl)
 
 import Discord.Types
 
 import Text.Read (readMaybe)
+import Control.Concurrent.MVar (newEmptyMVar)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -26,6 +30,7 @@ data Config = Config
 data InitialEnv = InitialEnv
   { envDBConnection :: DBConnection
   , envResponses :: [KeywordResponse]
+  , envNotifierControl :: NotifierControl
   }
 
 _DATABASE_FILE :: FilePath
@@ -50,10 +55,13 @@ initBot :: IO (InitialEnv, Config)
 initBot = do
   t <- getToken
   gid <- getGuildId
+
   krs <- Responses.initKeywordResponses _RESPONSES_FILE
   conn <- Database.initDBConnection _DATABASE_FILE
+
+  controller <- newEmptyMVar :: IO NotifierControl
  
-  return (InitialEnv conn krs, Config t gid)
+  return (InitialEnv conn krs controller, Config t gid)
 
 
 

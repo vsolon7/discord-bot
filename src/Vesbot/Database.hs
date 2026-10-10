@@ -1,19 +1,22 @@
 module Vesbot.Database
-  ( DBConnection
-  , initDBConnection
-  , withDB
+  ( initDBConnection
   ) where
 
-import Control.Concurrent.MVar( MVar, withMVar, newMVar )
+import Vesbot.Database.Types (DBConnection)
+
+import qualified Vesbot.ArgumentTimer.Database as ArgumentTimer (initTable)
+import qualified Vesbot.Notifications.Database as Notifications (initTable)
+
+import Control.Concurrent.MVar (newMVar)
 import Database.SQLite.Simple as SQL
 
-type DBConnection = MVar SQL.Connection
-
-withDB :: DBConnection -> (SQL.Connection -> IO a) -> IO a
-withDB = withMVar
 
 initDBConnection :: FilePath -> IO DBConnection
 initDBConnection databaseFile = do
   c <- SQL.open databaseFile
   threadSafeDBConnection <- newMVar c
+
+  ArgumentTimer.initTable threadSafeDBConnection
+  Notifications.initTable threadSafeDBConnection
+
   return threadSafeDBConnection

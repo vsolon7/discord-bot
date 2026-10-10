@@ -2,7 +2,7 @@
 module Vesbot.Handler.Messages where
 
 import Vesbot.Config (Config, InitialEnv, envResponses, envDBConnection, cfgGuildId)
-import Vesbot.Database (DBConnection)
+import Vesbot.Database.Types (DBConnection)
 import Vesbot.Utils (liftIO, fromBot)
 import Vesbot.Logging as Logging (echo)
 import Vesbot.Responses (responseData, responseKeyword, responseHandler)
@@ -13,6 +13,7 @@ import Discord.Types
 import qualified Data.Text as T
 import Data.List (find)
 import Data.Time (getCurrentTime)
+
 
 messageHandler :: Config -> InitialEnv -> Message -> DiscordHandler ()
 messageHandler cfg env =
@@ -38,6 +39,7 @@ messageHandler cfg env =
     startsWith :: Message -> T.Text -> Bool
     startsWith mess t = t `T.isPrefixOf` (T.toLower . messageContent $ mess)
     
+
     -- TODO: This should probably be done in an 'activity tracker' module.
     updateMessageActivity :: DBConnection -> Message -> UTCTime -> IO ()
     updateMessageActivity = undefined

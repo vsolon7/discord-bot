@@ -26,14 +26,23 @@ library
   exposed-modules:
     Vesbot.Handler,
     Vesbot.Logging,
-    Vesbot.Config
+    Vesbot.Config,
+    Vesbot.Notifications
   other-modules:
     Vesbot.Utils,
     Vesbot.Handler.Interactions,
     Vesbot.Handler.Messages,
     Vesbot.Responses,
     Vesbot.SlashCommands,
-    Vesbot.Database
+    Vesbot.SlashCommands.Types,
+    Vesbot.Database,
+    Vesbot.Database.Types,
+    Vesbot.Parsing,
+    Vesbot.ArgumentTimer,
+    Vesbot.ArgumentTimer.Database,
+    Vesbot.ArgumentTimer.Commands,
+    Vesbot.Notifications.Types,
+    Vesbot.Notifications.Database
   build-depends:
     base ^>= 4.21.0.0,
     discord-haskell == 1.19.0,
