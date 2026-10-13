@@ -1,0 +1,30 @@
+module Vesbot.Activity.Types
+  ( UserActivity(..)
+  ) where
+
+import Vesbot.Database.Types()
+
+import Discord.Types (UserId, GuildId, EmojiId)
+
+import Data.Int (Int64)
+import qualified Database.SQLite.Simple as SQL
+import qualified Data.Text as T
+
+
+data UserActivity = UserActivity
+  { recentActivityGuildId :: GuildId
+  , recentActivityUserId :: UserId
+  , recentActivityMessages :: Int64
+  , recentActivityReacts :: Int64
+  } deriving Show
+
+data EmojiActivity = EmojiActivity
+  { emojiActivityGuildId :: GuildId
+  , emojiActivityEmojiId :: Either T.Text EmojiId
+  , emojiActivityTimesUsed :: Int64
+  }
+
+-- See Vesbot.Database for the GuildId/UserId FromField instance.
+instance SQL.FromRow UserActivity where
+  fromRow = UserActivity <$> SQL.field <*> SQL.field <*> SQL.field <*> SQL.field
+

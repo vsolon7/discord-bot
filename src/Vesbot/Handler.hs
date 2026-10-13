@@ -2,11 +2,12 @@
 module Vesbot.Handler where
 
 import Vesbot.Utils (showT, forM_)
-import Vesbot.Database.Types (DBConnection)
 import Vesbot.Logging as Logging (echo)
-import Vesbot.Config as Config (InitialEnv, Config, cfgGuildId, envDBConnection)
+import Vesbot.Config as Config (Env(..), Config(..))
+import Vesbot.Database.Types (DBConnection)
 import Vesbot.Handler.Interactions (interactionHandler)
 import Vesbot.Handler.Messages (messageHandler)
+import Vesbot.Activity (updateReactionActivity)
 import Vesbot.SlashCommands as SC
 
 import Discord
@@ -17,25 +18,25 @@ import qualified Discord.Requests as R
 
 -- This function receives every Discord event and decides what to do with it.
 eventHandler :: Config
-               -> InitialEnv
+               -> Env
                -> Event
                -> DiscordHandler ()
 eventHandler cfg env =
   \event ->
     case event of
-      Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady (envDBConnection env) appid (cfgGuildId cfg)
-      InteractionCreate intr  -> interactionHandler cfg (envDBConnection env) intr
+      Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady env appid (cfgGuildId cfg)
+      InteractionCreate intr  -> interactionHandler cfg env intr
       MessageCreate mess      -> messageHandler cfg env mess
-      MessageReactionAdd info -> return ()
+      MessageReactionAdd info -> updateReactionActivity (envDBConnection env) info
       _                       -> return ()
 
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
-onReady :: DBConnection -> ApplicationId -> GuildId -> DiscordHandler ()
-onReady dbconn appId gId = do
+onReady :: Env -> ApplicationId -> GuildId -> DiscordHandler ()
+onReady env appId gId = do
   Logging.echo "Bot ready!"
 
-  appCmdRegistrations <- mapM tryRegistering (SC.slashCommands dbconn)
+  appCmdRegistrations <- mapM tryRegistering (SC.slashCommands env)
 
   case sequence appCmdRegistrations of
     Left err ->

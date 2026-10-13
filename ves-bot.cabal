@@ -27,8 +27,14 @@ library
     Vesbot.Handler,
     Vesbot.Logging,
     Vesbot.Config,
-    Vesbot.Notifications
+    Vesbot.Handler.Actions
+    JSONScheduler.Scheduler
   other-modules:
+    JSONScheduler.Scheduler.Bell
+    Vesbot.Actions,
+    Vesbot.Activity,
+    Vesbot.Activity.Types,
+    Vesbot.Activity.Database,
     Vesbot.Utils,
     Vesbot.Handler.Interactions,
     Vesbot.Handler.Messages,
@@ -40,12 +46,11 @@ library
     Vesbot.Parsing,
     Vesbot.ArgumentTimer,
     Vesbot.ArgumentTimer.Database,
-    Vesbot.ArgumentTimer.Commands,
-    Vesbot.Notifications.Types,
-    Vesbot.Notifications.Database,
-    Vesbot.Holidays,
-    Vesbot.Holidays.Types,
-    Vesbot.Holidays.Database
+    Vesbot.ArgumentTimer.Commands
+    Vesbot.Predictions,
+    Vesbot.Predictions.Database,
+    Vesbot.Predictions.Types,
+    Vesbot.Predictions.Commands
   build-depends:
     base ^>= 4.21.0.0,
     discord-haskell == 1.19.0,
@@ -68,6 +73,6 @@ executable ves-bot
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
 
-  build-depends: base ^>=4.21.0.0, discord-haskell == 1.19.0, ves-bot
+  build-depends: base ^>=4.21.0.0, discord-haskell == 1.19.0, unliftio ^>= 0.2.25.1, ves-bot,
   hs-source-dirs:   app
   default-language: Haskell2010

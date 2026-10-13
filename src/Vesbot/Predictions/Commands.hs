@@ -1,0 +1,208 @@
+{-# LANGUAGE OverloadedStrings #-}
+module Vesbot.Predictions.Commands
+  ( makePrediction
+  ) where
+
+import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, void, liftIO)
+import Vesbot.Config (Env(..))
+import Vesbot.Logging as Logging (echo)
+import Vesbot.Parsing (extractNumberOption, extractStringOption, parseDateInput, utcToInt, intToUTC, getUserData)
+import Vesbot.Actions (Action(..))
+import Vesbot.Predictions.Types
+import Vesbot.Predictions.Database
+import Vesbot.SlashCommands.Types (SlashCommand(..))
+
+import JSONScheduler.Scheduler (Schedule(..), Scheduler(..), scheduleJob)
+
+import Discord
+import Discord.Types
+import Discord.Internal.Types.Interactions
+import Discord.Internal.Types.ApplicationCommands
+import qualified Discord.Requests as R
+import Data.Time
+import Data.Int (Int64)
+import qualified Data.Text as T
+
+
+parsePredictionCommand :: UTCTime -> Interaction -> Either T.Text (PredictionData, ChannelId)
+parsePredictionCommand currTime (cmd@InteractionApplicationCommand { applicationCommandData = input@ApplicationCommandDataChatInput {} }) =
+  do
+    dataValues <-
+      maybeToEither
+        "Could not access the prediction command's option fields."
+        (optionsData input)
+    let confidence = -- :: Maybe Integer, since Nothing is OK; confidence level isn't a required input
+          extractNumberOption
+            "confidence"
+            dataValues
+    predText <-
+      maybeToEither
+        "Could not access prediction field."
+        (extractStringOption "prediction" dataValues)
+    dueDateText <-
+      maybeToEither
+        "Could not access prediction date field."
+        (extractStringOption "date" dataValues)
+    gid <-
+      maybeToEither
+        "Error accessing Guild ID for the prediction command. Note that this command can only be used in a server."
+        (interactionGuildId cmd)
+    cid <-
+      maybeToEither
+        "Error accessing channel ID for the prediction command. Note that this command can only be used in a server."
+        (interactionChannelId cmd)
+    uid <-
+      maybeToEither
+        "Could not get user data for the prediction command. Note that this command can only be used in a server."
+        (getUserData . interactionUser $ cmd)
+    dueDateUTC <-
+      maybeToEither
+        "Error parsing prediction date. Here are the formatting options.\n\
+        \**Relative time:** \"in #w\" or \"in #d\" or \"in #h\" or \"in #m\", where # is a positive integer.\
+        \ \"w\" stands for weeks, \"d\" stands for days, \"h\" stands for hours, and \"m\" stands for minutes.\n\
+        \**Absolute time:** \"on month-day-year HH:MM <timezone>\", where the timezone is optional.\
+        \If no timezone is entered, the bot will default to UTC. Timezone examples are CST, CDT, EST, etc."
+        (parseDateInput currTime . T.unpack $ dueDateText)
+    return $
+      ( PredictionData
+          { predictionGuildId = gid
+          , predictionUserId = uid
+          , predictionContent = predText
+          , predictionConfidence = confidence
+          , predictionMadeDate = currTime
+          , predictionDueDate = dueDateUTC
+          }
+      , cid
+      )
+
+parsePredictionCommand _ _ = Left "Tried to parse an interaction that is not a chat input slash command when parsing the prediction command."
+
+-- | Generate the bot reply to the command. parsePredictionCommand returns either an error message or a record of the
+-- relevant prediction command data. We must either respond with an (ephemeral) error, or else form the bot reply
+-- in the case that the user actually predicted a future event.
+createInitialPredictionResponse :: UTCTime -> Either T.Text (PredictionData, ChannelId) -> InteractionResponse
+createInitialPredictionResponse currTime mpcd =
+  case mpcd of
+    Right (pd,_) ->
+      if currTime < predictionDueDate pd then
+        let
+          userPing = "<@" <> showT (predictionUserId pd) <> ">"
+          dueDateUTC = showT . utcToInt $ predictionDueDate pd
+          dueDateTimeStampRel = "<t:" <> dueDateUTC <> ":R>"
+          dueDateTimeStampAbs = "<t:" <> dueDateUTC <> ":f>"
+          responseStart = case predictionConfidence pd of
+            Nothing -> "They claim"
+            Just c  -> "They are " <> showT c <> "%" <> " confident"
+          response =
+            userPing <> " has made a prediction!\n" <>
+            responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
+            ", the following will occur:\n" <>
+            predictionContent pd <> "."
+        in
+          interactionResponseBasic response
+      else
+        ephemeralResponseBasic "You can only predict events in the future!"
+    Left err -> ephemeralResponseBasic err
+
+
+predictionDataToAnnounceAction :: PredictionData -> Int64 -> ChannelId -> MessageId -> Action
+predictionDataToAnnounceAction pd pid cid mid =
+  let
+    userPing = "<@" <> showT (predictionUserId pd) <> ">"
+    predDateUTC = showT . utcToInt $ predictionMadeDate pd
+    predDateTimeStampRel = "<t:" <> predDateUTC <> ":R>"
+    predDateTimeStampAbs = "<t:" <> predDateUTC <> ":f>"
+    claim = case predictionConfidence pd of
+                      Nothing -> "claimed"
+                      Just c  -> "was " <> showT c <> "%" <> " confident"
+    content =
+      predDateTimeStampRel <> ", on " <> predDateTimeStampAbs <> ", " <> userPing <> " " <> claim <>
+      " that on or before this time today, the following would happen:\n" <> "*" <>
+      (predictionContent pd) <> "*.\n" <>
+      "Were they correct?"
+  in
+    AnnounceDuePrediction pid cid mid
+
+
+makePrediction :: Env -> SlashCommand
+makePrediction env = SlashCommand
+  { commandName = "predict"
+  , commandRegistration = Just reg
+  , commandHandler = \intr _ -> do
+      currTime <- liftIO getCurrentTime
+      let iTok = interactionToken intr -- save the interaction token to get the message ID of the bot's reply
+      let mpd = parsePredictionCommand currTime intr :: Either T.Text (PredictionData, ChannelId)
+      let botReply = createInitialPredictionResponse currTime mpd
+
+      -- Respond with the error or the correct reply
+      void . restCall $
+        R.CreateInteractionResponse
+          (interactionId intr)
+          (interactionToken intr)
+          botReply
+
+      -- | If the predictionCommandData was parsed correctly, we want to save the prediction to the database
+      -- We can't do this before because we also want to save the ID of the message the bot responds to the
+      -- slash command with, and this message is sent **after** the restCall immediately above.
+      case mpd of
+        Right (pd, cid) | currTime < predictionDueDate pd -> do
+          maybeResult <- restCall $
+            R.GetOriginalInteractionResponse
+              (interactionApplicationId intr)
+              iTok
+          case maybeResult of
+            Right msg -> do
+              void . liftIO $ do
+                pid <- savePrediction (envDBConnection env) pd
+                let a = predictionDataToAnnounceAction pd pid cid (messageId msg)
+                r <- scheduleJob (envScheduler env) Nothing (Once . predictionDueDate $ pd) a
+                case r of
+                  Left err -> Logging.echo $ "Error scheduling a prediction due date. Error was:\n" <> err
+                  _ -> return ()
+            Left err -> echo $
+              "Error acquiring the bot's prediction reply message.\
+              \Discord sent the following error message:\n" <> showT err
+        _ -> return ()
+  }
+    where
+      reg = -- Command registration
+        CreateApplicationCommandChatInput
+          "predict"
+          Nothing
+          "Predict the future!"
+          Nothing (
+            Just (
+              OptionsValues
+                [
+                  OptionValueString
+                    "prediction"
+                    Nothing
+                    "What you are predicting will happen"
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueString
+                    "date"
+                    Nothing
+                    "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\""
+                    Nothing
+                    True
+                    (Left False)
+                    (Just 1)
+                    Nothing
+                , OptionValueInteger
+                    "confidence"
+                    Nothing
+                    "(Optional) Prediction confidence"
+                    Nothing
+                    False
+                    (Left False)
+                    (Just 1)
+                    (Just 100)
+                ]
+              )
+            )
+          Nothing
+          (Just False)

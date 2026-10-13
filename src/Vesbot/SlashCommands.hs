@@ -8,10 +8,12 @@ module Vesbot.SlashCommands
   ) where
 
 import Vesbot.Utils (liftIO, void, showT)
-import Vesbot.Database.Types (DBConnection)
+import Vesbot.Config (Env(..))
+import Vesbot.Database (DBConnection)
 import Vesbot.SlashCommands.Types
 
 import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
+import Vesbot.Predictions.Commands (makePrediction)
 
 import Discord
 import Discord.Internal.Types.ApplicationCommands
@@ -42,13 +44,14 @@ basicSlashCommand name regDesc statefulText
     }
 
 
-slashCommands :: DBConnection -> [SlashCommand]
-slashCommands dbconn =
+slashCommands :: Env -> [SlashCommand]
+slashCommands env =
   [ ping
   , time
   , glorp
-  , viewAC dbconn
-  , resetAC dbconn
+  , viewAC (envDBConnection env)
+  , resetAC (envDBConnection env)
+  , makePrediction env
   ]
 
 

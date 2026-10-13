@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Handler.Messages where
 
-import Vesbot.Config (Config, InitialEnv, envResponses, envDBConnection, cfgGuildId)
-import Vesbot.Database.Types (DBConnection)
 import Vesbot.Utils (liftIO, fromBot)
 import Vesbot.Logging as Logging (echo)
+import Vesbot.Config (Config(..), Env(..))
+import Vesbot.Database.Types (DBConnection)
+import Vesbot.Activity (updateMessageActivity)
 import Vesbot.Responses (responseData, responseKeyword, responseHandler)
 
 import Discord
@@ -15,17 +16,17 @@ import Data.List (find)
 import Data.Time (getCurrentTime)
 
 
-messageHandler :: Config -> InitialEnv -> Message -> DiscordHandler ()
+messageHandler :: Config -> Env -> Message -> DiscordHandler ()
 messageHandler cfg env =
-  \message ->
-    if fromBot message
+  \msg ->
+    if fromBot msg
       then return ()
     else do
       now <- liftIO getCurrentTime
-      case find (\r -> message `startsWith` (responseKeyword . responseData $ r)) (envResponses env) of
+      case find (\r -> msg `startsWith` (responseKeyword . responseData $ r)) (cfgResponses cfg) of
         Nothing       -> return ()
-        Just response -> responseHandler response message
-      case messageGuildId message of
+        Just response -> responseHandler response msg
+      case messageGuildId msg of
         Nothing ->
           Logging.echo
             "Received message does not have an associated Guild ID. The bot is only \
@@ -34,13 +35,8 @@ messageHandler cfg env =
           if gid /= cfgGuildId cfg
             then Logging.echo "Received message with a different Guild ID than the Guild ID the bot was configured \
                               \ with. The bot is designed to be used on a single server!"
-          else liftIO $ updateMessageActivity (envDBConnection env) message now
+          else liftIO $ updateMessageActivity (envDBConnection env) msg
   where
     startsWith :: Message -> T.Text -> Bool
-    startsWith mess t = t `T.isPrefixOf` (T.toLower . messageContent $ mess)
-    
-
-    -- TODO: This should probably be done in an 'activity tracker' module.
-    updateMessageActivity :: DBConnection -> Message -> UTCTime -> IO ()
-    updateMessageActivity = undefined
+    startsWith msg t = t `T.isPrefixOf` (T.toLower . messageContent $ msg)
 
