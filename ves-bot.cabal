@@ -52,7 +52,7 @@ library
     Vesbot.Predictions.Types,
     Vesbot.Predictions.Commands
   build-depends:
-    base ^>= 4.21.0.0,
+    base >= 4.20.0.0,
     discord-haskell == 1.19.0,
     text ^>= 2.1.2,
     bytestring ^>= 0.12.2.0,
@@ -73,6 +73,6 @@ executable ves-bot
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
 
-  build-depends: base ^>=4.21.0.0, discord-haskell == 1.19.0, unliftio ^>= 0.2.25.1, ves-bot,
+  build-depends: base >=4.20.0.0, discord-haskell == 1.19.0, unliftio ^>= 0.2.25.1, ves-bot,
   hs-source-dirs:   app
   default-language: Haskell2010
