@@ -21,12 +21,12 @@ In `Main.hs`, we take the configuration data and use it to run the bot with the 
 Now, `runDiscord` has `discordOnStart` and `discordOnEvent` functions that define what actions to take when bot establishes the connection with Discord and when the bot receives Discord events, respectively. When the bot starts, it initializes the job scheduler process via `runScheduler` defined in `JSONScheduler.Scheduler` (which corresponds to the file `src/JSONScheduler/Scheduler.hs`). This function essentially just periodically checks a database for the next scheduled action (it computes the time `T` until the next scheduled action and waits `max(T, 1 hour)`. When a job is scheduled, the scheduler recomputes the time `T` until the next soonest action and waits for `max(T, 1 hour)`). After this, the bot continuously monitors for Discord events. When one comes in, it *forks a new thread* and passes the event data to `eventHandler` defined in `Vesbot.Handler`
 
 ## Event Handler
-the `eventHandler` pattern matches on the type of event and delegates to more specialized function. The first thing that happens is the "Ready" event. When this happens, the bot tries to register the various application commands defined in `mySlashCommands :: [SlashCommand]` found in `Vesbot.SlashCommands` (many of them are/will be simply imported from modules defined in `Vesbot.X.Commands`) and it unregisters the ones that are "out of date", meaning they were registered by the last instance of the bot, but not the current one.
+The `eventHandler` pattern matches on the type of event and delegates to more specialized function. The first thing that happens is the "Ready" event. When this happens, the bot tries to register the various application commands defined in `mySlashCommands :: [SlashCommand]` found in `Vesbot.SlashCommands` (many of them are/will be simply imported from modules defined in `Vesbot.X.Commands`) and it unregisters the ones that are "out of date", meaning they were registered by the last instance of the bot, but not the current one.
 
 Here are the other sorts of events the bot can currently handle:
 1.  `InteractionCreate` events, which are essentially just slash commands at this point. These are passed to `interactionHandler` in `Vesbot.Handler.Interactions`, which ignores all InteractionCreate events that are not slash commands.
 2. `MessageCreate` events, which happen anytime anyone sends any message (or does similar things, such as create a thread). These are passed to `messageHandler` in `Vesbot.Handler.Messages`
-3. `MessageReactionAdd` events, which happen anytime anyone (including bots) react to any message. These are passed to `updateReactionActivity` defined in `Vesbot.Activity`.
+3. `MessageReactionAdd` events, which happen any time anyone (including bots) react to any message. These are passed to `updateReactionActivity` defined in `Vesbot.Activity`.
 4. (Coming soon) I need to add a similar function for MessageReactionRemove events.
 
 That's essentially it, the bot just responds to these small number of interaction types.
@@ -34,7 +34,7 @@ That's essentially it, the bot just responds to these small number of interactio
 ## Slash Commands
 This is the main way of interfacing with the bot. Each module `X` defines some commands in `Vesbot.X.Commands`. Some commands have to write to/read from a database, and all the database commands are defined in `Vesbot.X.Database`. Each `Vesbot.X.Commands` exports its commands so that the `Vesbot.SlashCommands` module can import all of them and bundle the commands together in a list of all the slash commands to be defined, called `mySlashCommands`. It then exports `mySlashCommands` to `Vesbot.Handler` so that the handler can register them.
 
-In `Vesbot.SlashCommands.Types`, you will see there is a type `SlashCommand`. A `SlashCommand` is a record containing the command name, the command registration, and then a function `commandHandler :: Interaction -> Maybe OptionsData -> DiscordHandler ()`. This function is called by the `interactionHandler` after it finds the slash command corresponding to the name of the command. `DiscordHandler ()` is a `ReaderT DiscordHandle IO ()`, which just means it's an `IO` monad that has access to the read-only content of the `DiscordHandle`; the latter being a record of all the data discord-haskell uses to communicate with discord. So, the `commandHandler` takes in an interaction and some options data, and it runs some `IO`, possibly involving the Discord API and the bot's connection to the server (for example, the bot will send a response in the form of a chat input).
+In `Vesbot.SlashCommands.Types`, you will see there is a type `SlashCommand`. A `SlashCommand` is a record containing the command name, the command registration, and then a function `commandHandler :: Interaction -> Maybe OptionsData -> DiscordHandler ()`. This function is called by the `interactionHandler` after it finds the slash command corresponding to the name of the command. `DiscordHandler ()` is a `ReaderT DiscordHandle IO ()`, which just means it's an `IO` monad that has access to the read-only content of the `DiscordHandle`; the latter being a record of all the data discord-haskell uses to communicate with discord. So, the `commandHandler` function takes in an interaction and some options data, and it runs some `IO`, possibly involving the Discord API and the bot's connection to the server (for example, the bot will send a response in the form of a chat input).
 
 In the various modules `Vesbot.X.Commands`, therefore, you will find the actual code that is run when the bot receives a slash command interaction corresponding to that slash command.
 
@@ -44,16 +44,18 @@ Currently, the bot keeps track of some basic usage data. Namely, the number of r
 # Scheduler
 Sometimes, the bot wants to schedule future things to happen in response to user commands (or just in general, for example, holiday notifications). This is how the prediction system works, and I hope to add a betting system and a remind system in the future (the latter should be simple).
 
-The way it does this is with a library I wrote called JSONScheduler, which is still fairly rough and has bugs in edge cases that won't really come up for the use cases of this bot (hopefully...). The idea is you have a database of all scheduled future tasks and a scheduler that runs on its own thread in a loop of `check for due jobs -> do their associated actions -> wait until the next job is due`. The scheduler spends most of its time waiting at the end of this loop (by trying to take from an empty MVar). When a future job is schedule (i.e., is added to the database), it wakes up the scheduler, which then starts over at the start of the loop.
+The way it does this is with a library I wrote called JSONScheduler, which is still fairly rough and has known bugs in edge cases that won't really come up for the use cases of this bot (hopefully...). The idea is you have a database of all scheduled future tasks and a scheduler that runs on its own thread in a loop of `check for due jobs -> do their associated actions -> wait until the next job is due`. The scheduler spends most of its time waiting at the end of this loop (by trying to take from an empty MVar). When a future job is schedule (i.e., is added to the database), it wakes up the scheduler, which then starts over at the start of the loop.
 
 The way the scheduler knows what action to take when a job is due is that it takes in a function ``handler :: a -> IO ()`` (the monad is actually slightly more general than `IO`, but you can/should think of it as `IO`). What is `a`? It's a data type with `Data.Aeson` `FromJSON` and `ToJSON` instance that bundles together all of the necessary information to actually do the action. The scheduler stores the JSON representation in the database when `scheduleJob` is called for that action `a`. When it's time for `a` to fire, it converts it from JSON to something of type `a` again, and then passes that to the event handler. So the event handler function that is passed to `runScheduler` is going to be something like
 
 ```hs
 handler :: a -> IO ()
 handler action = case action of
-ActionOne d1 d2 ... dn -> functionOne d1 d2 ... dn
-ActionTwo d1 d2 ... dn -> functionTwo d1 d2 ... dn
+Action1 d1 d2 ... dn1   -> runAction1 d1 d2 ... dn1
+Action2 d1 d2 ... dn2   -> runAction2 d1 d2 ... dn2
 ...
-_                      -> return ()
+Action10 d1 d2 ... dn10 -> runAction10 d1 ... dn10
 ```
 You can see this in the bot in `Vesbot.Handler.Actions`.
+
+The JSONScheduler has support for all sorts of periodically recurring actions, which I mainly added for holiday support (but there are tricky holidays like easter that it can't support... maybe with a future `Easterly` type!). When an action is found to be due, the scheduler either removes it from the database, or updates the time it should be due again, in accordance with its recurrence type.
