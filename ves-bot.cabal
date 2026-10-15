@@ -27,6 +27,7 @@ library
     Vesbot.Handler,
     Vesbot.Logging,
     Vesbot.Config,
+    Vesbot.Database,
     Vesbot.Handler.Actions
     JSONScheduler.Scheduler
   other-modules:
@@ -41,7 +42,6 @@ library
     Vesbot.Responses,
     Vesbot.SlashCommands,
     Vesbot.SlashCommands.Types,
-    Vesbot.Database,
     Vesbot.Database.Types,
     Vesbot.Parsing,
     Vesbot.ArgumentTimer,

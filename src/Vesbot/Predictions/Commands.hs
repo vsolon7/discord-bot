@@ -5,7 +5,7 @@ module Vesbot.Predictions.Commands
 
 import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, void, liftIO)
 import Vesbot.Config (Env(..))
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Parsing (extractNumberOption, extractStringOption, parseDateInput, utcToInt, intToUTC, getUserData)
 import Vesbot.Actions (Action(..))
 import Vesbot.Predictions.Types
@@ -31,7 +31,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
       maybeToEither
         "Could not access the prediction command's option fields."
         (optionsData input)
-    let confidence = -- :: Maybe Integer, since Nothing is OK; confidence level isn't a required input
+    let confidence = -- :: Maybe Double, since Nothing is OK; confidence level isn't a required input
           extractNumberOption
             "confidence"
             dataValues
@@ -43,7 +43,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
       maybeToEither
         "Could not access prediction date field."
         (extractStringOption "date" dataValues)
-    gid <-
+    _ <-
       maybeToEither
         "Error accessing Guild ID for the prediction command. Note that this command can only be used in a server."
         (interactionGuildId cmd)
@@ -65,8 +65,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
         (parseDateInput currTime . T.unpack $ dueDateText)
     return $
       ( PredictionData
-          { predictionGuildId = gid
-          , predictionUserId = uid
+          { predictionUserId = uid
           , predictionContent = predText
           , predictionConfidence = confidence
           , predictionMadeDate = currTime
@@ -155,12 +154,12 @@ makePrediction env = SlashCommand
               void . liftIO $ do
                 pid <- savePrediction (envDBConnection env) pd
                 let a = predictionDataToAnnounceAction pd pid cid (messageId msg)
-                r <- scheduleJob (envScheduler env) Nothing (Once . predictionDueDate $ pd) a
+                r <- scheduleJob (envScheduler env) (Just $ "prediction:" <> showT pid) (Once . predictionDueDate $ pd) a
                 case r of
-                  Left err -> Logging.echo $ "Error scheduling a prediction due date. Error was:\n" <> err
+                  Left err -> Logging.log Error $ "Error scheduling a prediction due date. \
+                    \The job scheduler returned the following error:\n" <> err
                   _ -> return ()
-            Left err -> echo $
-              "Error acquiring the bot's prediction reply message.\
+            Left err -> Logging.log Error $ "Error acquiring the bot's prediction reply message.\
               \Discord sent the following error message:\n" <> showT err
         _ -> return ()
   }
@@ -192,14 +191,14 @@ makePrediction env = SlashCommand
                     (Left False)
                     (Just 1)
                     Nothing
-                , OptionValueInteger
+                , OptionValueNumber
                     "confidence"
                     Nothing
-                    "(Optional) Prediction confidence"
+                    "(Optional) Prediction confidence (ex: 20.4 means 20.4%)"
                     Nothing
                     False
                     (Left False)
-                    (Just 1)
+                    (Just 0)
                     (Just 100)
                 ]
               )

@@ -12,15 +12,14 @@ import qualified Data.Text as T
 
 
 data UserActivity = UserActivity
-  { recentActivityGuildId :: GuildId
-  , recentActivityUserId :: UserId
-  , recentActivityMessages :: Int64
-  , recentActivityReacts :: Int64
+  { activityUserId :: UserId
+  , activityMessages :: Int64
+  , activityReacts :: Int64
+  , activityReactees :: Int64
   } deriving Show
 
 data EmojiActivity = EmojiActivity
-  { emojiActivityGuildId :: GuildId
-  , emojiActivityEmojiId :: Either T.Text EmojiId
+  { emojiActivityEmojiId :: Either T.Text EmojiId
   , emojiActivityTimesUsed :: Int64
   }
 

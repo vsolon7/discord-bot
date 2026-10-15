@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Parsing where
 
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 
 import Discord.Types
 import Discord.Internal.Types.Interactions
@@ -29,16 +29,21 @@ safeHead :: a -> [a] -> a
 safeHead d [] = d
 safeHead _ (x:xs) = x
 
+
 parseJSON :: AE.FromJSON a => FilePath -> IO (Maybe a)
 parseJSON path = do
   jsonData <- BS.readFile path
   let decoded = AE.decodeStrict jsonData
   case decoded of
     Nothing -> do
-      Logging.echo $ "Error parsing the JSON Data in " <> T.pack path <> "."
+      Logging.log Error $ "Error parsing the JSON data in " <> T.pack path <> "."
       return Nothing
-    Just d  -> return (Just d)
+    Just d  -> do
+      Logging.log Info $ "Successfully parsed the JSON data in " <> T.pack path <> "."
+      return (Just d)
 
+
+-- | Kind of a silly function, date input parsing for the predictions is fairly restrictive right now.
 parseDateInput :: UTCTime -> String -> Maybe UTCTime
 parseDateInput currTime inpt = case words inpt of
   ("on":absInpt:timeInpt:timeZoneOrEmpty) ->

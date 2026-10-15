@@ -2,6 +2,7 @@ module Vesbot.Database
   ( initDBConnection
   , DBConnection(..)
   , withDB
+  , closeDBConnection
   ) where
 
 import Vesbot.Database.Types (DBConnection, withDB)
@@ -24,3 +25,6 @@ initDBConnection databaseFile = do
   Activity.initUserActivityTable threadSafeDBConnection
 
   return threadSafeDBConnection
+
+closeDBConnection :: DBConnection -> IO ()
+closeDBConnection dbconn = withDB dbconn SQL.close

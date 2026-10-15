@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.ArgumentTimer.Database where
 
-import Vesbot.Logging as Logging (echo)
 import Vesbot.Database.Types (DBConnection, withDB)
 import Vesbot.Parsing (intToUTC, utcToInt)
 

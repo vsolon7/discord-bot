@@ -24,7 +24,6 @@ initTable dbconn = withDB dbconn $ \conn ->
   SQL.execute_ conn
     "CREATE TABLE IF NOT EXISTS predictions(\
     \  id             INTEGER PRIMARY KEY,\
-    \  guild_id       TEXT NOT NULL,\
     \  user_id        TEXT NOT NULL,\
     \  content        TEXT NOT NULL,\
     \  confidence     REAL,\
@@ -37,8 +36,8 @@ savePrediction dbconn p = withDB dbconn $
   \conn -> do
     r <- SQL.query conn
       "INSERT INTO predictions \
-      \(guild_id, user_id, content, confidence, created_at, due_at) \
-      \VALUES (?, ?, ?, ?, ?, ?) \
+      \(user_id, content, confidence, created_at, due_at) \
+      \VALUES (?, ?, ?, ?, ?) \
       \RETURNING id" p
     case r of
       [SQL.Only (Just id)] -> return id
@@ -48,7 +47,7 @@ getPredictionById :: DBConnection -> Int64 -> IO (Maybe PredictionData)
 getPredictionById dbconn pid = withDB dbconn $
   \conn -> do
     mr <- SQL.query conn
-      "SELECT guild_id, user_id, content, confidence, created_at, due_at \
+      "SELECT user_id, content, confidence, created_at, due_at \
       \FROM predictions \
       \WHERE id = ?"
       [pid] :: IO ([PredictionData])

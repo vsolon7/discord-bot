@@ -4,7 +4,7 @@ module Vesbot.Handler.Actions
   ) where
 
 import Vesbot.Utils (void, showT, announce, sendMessage)
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Env(..), Config(..))
 import Vesbot.Actions
 import Vesbot.Database.Types (DBConnection)

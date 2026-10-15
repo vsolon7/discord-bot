@@ -5,8 +5,8 @@ module Vesbot.Handler.Interactions
 
 import Vesbot.Config (Config(..), Env(..))
 import Vesbot.Utils (find)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Database (DBConnection)
-import Vesbot.Logging as Logging (echo)
 import Vesbot.SlashCommands as SC
 
 import Discord
@@ -24,6 +24,6 @@ interactionHandler cfg env =
           Just found -> do
             (SC.commandHandler found) cmd (optionsData input)
           Nothing ->
-            Logging.echo "Somehow got unknown slash command (registrations out of date?)"
+            Logging.log Warn $ "Somehow got unknown slash command (registrations out of date?)"
     _ ->
       return () -- Unexpected/unsupported interaction type

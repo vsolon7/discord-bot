@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Predictions where
 
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Utils (sendMessage, liftIO, showT)
 import Vesbot.Parsing (utcToInt)
 import Vesbot.Config (Env(..))
@@ -21,8 +21,8 @@ announceDuePrediction :: Env -> PredictionId -> ChannelId -> MessageId -> Discor
 announceDuePrediction env pid cid mid = do
   mpd <- liftIO $ getPredictionById (envDBConnection env) pid
   case mpd of
-    Nothing -> Logging.echo $ "Tried to announce a due predictiong, but there are no predictions in the database \
-                              \corresponding to the saved prediction ID!"
+    Nothing -> Logging.log Error $ "Tried to announce the due prediction with ID" <> showT pid <> ", but \
+      \there are no predictions in the database corresponding to that prediction ID!"
     Just pd ->
       let userPing = "<@" <> showT (predictionUserId pd) <> ">"
           predDateUTC = showT . utcToInt $ predictionMadeDate pd
@@ -36,5 +36,7 @@ announceDuePrediction env pid cid mid = do
             " that on or before this time today, the following would happen:\n" <> "*" <>
             (predictionContent pd) <> "*.\n" <>
             "Were they correct?"
-      in  sendMessage cid (Just mid) content
+      in do 
+        Logging.log Info $ "Announcing the due prediction with ID " <> showT pid <> "..."
+        sendMessage cid (Just mid) content
   liftIO $ markAsNotified (envDBConnection env) pid

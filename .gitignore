@@ -4,3 +4,4 @@ dist-newstyle/packagedb/
 dist-newstyle/tmp/
 appdata/database/data.db
 appdata/scheduler/
+log.out

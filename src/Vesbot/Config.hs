@@ -6,6 +6,7 @@ module Vesbot.Config
   ) where
 
 import Vesbot.Utils (forM_)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Actions (Action(..))
 import Vesbot.Responses as Responses (KeywordResponse, initKeywordResponses)
 import Vesbot.Database.Types (DBConnection)
@@ -63,7 +64,9 @@ getGuildId = do
   gids <- readFile "../discord-bot-apidata/guildid"
   case readMaybe gids of
     Just g -> return g
-    Nothing -> error "Could not read guild id from `apidata/guildid`"
+    Nothing -> do
+      Logging.log Error "Could not parse Guild ID from discord-bot-apidata/guildid"
+      error "Fatal error."
 
 
 initBot :: IO (T.Text, Env, Config)
@@ -75,26 +78,27 @@ initBot = do
   krs <- Responses.initKeywordResponses _RESPONSES_FILE
   conn <- Database.initDBConnection _DATABASE_FILE
 
-  hs <- readInitialActions _INITIAL_ACTIONS_FILE
-  scheduleInitialActions hs s
+  hs <- readJSONActions _INITIAL_ACTIONS_FILE
+  scheduleJSONActions hs s
 
   acid <- readAnnouncementChannelId _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE
 
   return (t, Env conn s, Config gid krs acid)
 
-readInitialActions :: FilePath -> IO [InitialAction]
-readInitialActions file = do
+--TODO: this should really by a use of Vesbot.Parsing.ParseJSON. that function needs to use eitherDecodeFileStrict though
+readJSONActions :: FilePath -> IO [InitialAction]
+readJSONActions file = do
   mas <- eitherDecodeFileStrict file
   case mas of
     Left err -> do
-      putStrLn $ "Error parsing initial actions in " ++ _INITIAL_ACTIONS_FILE ++ ". Error was:\n" ++ err
+      Logging.log Error $ "Error parsing initial actions in " <> (T.pack _INITIAL_ACTIONS_FILE) <> ". Error was:\n" <> (T.pack err)
       return []
     Right as -> do
-      putStrLn $ "Successfully parsed actions in " ++ _INITIAL_ACTIONS_FILE ++ "."
+      Logging.log Info $ "Successfully parsed actions in " <> (T.pack _INITIAL_ACTIONS_FILE) <> "."
       return as
 
-scheduleInitialActions :: [InitialAction] -> Scheduler Action -> IO ()
-scheduleInitialActions as scheduler =
+scheduleJSONActions :: [InitialAction] -> Scheduler Action -> IO ()
+scheduleJSONActions as scheduler =
   forM_ as $ \(InitialAction id a s) ->
     scheduleJob scheduler (Just id) s a
 
@@ -102,5 +106,5 @@ readAnnouncementChannelId :: FilePath -> IO ChannelId
 readAnnouncementChannelId file = do
   cidText <- readFile _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE
   let acid = read cidText
-  putStrLn $ "Successfully parsed announcement channel ID in " ++ _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE ++ "."
+  Logging.log Info $ "Successfully parsed announcement channel ID in " <> (T.pack _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE) <> "."
   return acid

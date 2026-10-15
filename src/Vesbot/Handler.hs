@@ -2,7 +2,7 @@
 module Vesbot.Handler where
 
 import Vesbot.Utils (showT, forM_)
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config as Config (Env(..), Config(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Handler.Interactions (interactionHandler)
@@ -34,15 +34,15 @@ eventHandler cfg env =
 -- Registers the application commands defined in Commands.hs when the bot is ready.
 onReady :: Env -> ApplicationId -> GuildId -> DiscordHandler ()
 onReady env appId gId = do
-  Logging.echo "Bot ready!"
+  Logging.log Always $ "Bot ready!"
 
   appCmdRegistrations <- mapM tryRegistering (SC.slashCommands env)
 
   case sequence appCmdRegistrations of
     Left err ->
-      Logging.echo $ "Failed to register some commands" <> showT err
+      Logging.log Error $ "Failed to register some commands" <> showT err
     Right cmds -> do
-      Logging.echo $ "Registered " <> showT (length cmds) <> " command(s)."
+      Logging.log Info $ "Registered " <> showT (length cmds) <> " command(s)."
       unregisterOutdatedCmds cmds
   where
     tryRegistering cmd = case SC.commandRegistration cmd of
@@ -54,7 +54,7 @@ onReady env appId gId = do
       registered <- restCall $ R.GetGuildApplicationCommands appId gId
       case registered of
         Left err ->
-          Logging.echo $ "Failed to get registered slash commands: " <> showT err
+          Logging.log Error $ "Failed to get registered slash commands: " <> showT err
         Right cmds ->
           let validIds = map applicationCommandId validCmds
               outdatedIds = filter (`notElem` validIds) . map applicationCommandId $ cmds

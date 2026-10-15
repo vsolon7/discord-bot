@@ -3,8 +3,9 @@ module Main (main) where
 
 import Vesbot.Handler as Handler (eventHandler)
 import Vesbot.Handler.Actions as Handler (actionHandler)
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config as Config (initBot, Env(..))
+import Vesbot.Database as Database (closeDBConnection)
 import JSONScheduler.Scheduler (runScheduler, closeScheduler)
 
 import Discord
@@ -22,11 +23,12 @@ main = do
         , discordForkThreadForEvents = True
         , discordOnStart = runScheduler (envScheduler env) (actionHandler env cfg)
         , discordOnEvent = Handler.eventHandler cfg env
-        , discordOnLog = Logging.echo
+        , discordOnLog = Logging.log Error
         , discordOnEnd = do
-            Logging.echo "\nBot has disconnected. Cleaning up..."
+            Logging.log Always $ "Bot has disconnected. Cleaning up..."
             closeScheduler (envScheduler env)
+            closeDBConnection (envDBConnection env)
         , discordGatewayIntent = def {gatewayIntentMessageContent = True}
         }
 
-  echo $ "A fatal error occurred: " <> botTerminationError
+  Logging.log Error $ "A fatal error occurred: " <> botTerminationError

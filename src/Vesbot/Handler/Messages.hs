@@ -2,7 +2,7 @@
 module Vesbot.Handler.Messages where
 
 import Vesbot.Utils (liftIO, fromBot)
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Activity (updateMessageActivity)
@@ -28,15 +28,13 @@ messageHandler cfg env =
         Just response -> responseHandler response msg
       case messageGuildId msg of
         Nothing ->
-          Logging.echo
-            "Received message does not have an associated Guild ID. The bot is only \
-            \supposed to be used in a server!"
+          Logging.log Warn $ "Received message does not have an associated Guild ID! Ignoring it... the bot should \
+          \only be used in a server."
         Just gid ->
           if gid /= cfgGuildId cfg
-            then Logging.echo "Received message with a different Guild ID than the Guild ID the bot was configured \
-                              \ with. The bot is designed to be used on a single server!"
+            then Logging.log Error $ "Received message with a different Guild ID than the Guild ID the bot was configured \
+                              \ with. Does the token correspond to the Guild ID in the guildid file?"
           else liftIO $ updateMessageActivity (envDBConnection env) msg
   where
     startsWith :: Message -> T.Text -> Bool
     startsWith msg t = t `T.isPrefixOf` (T.toLower . messageContent $ msg)
-

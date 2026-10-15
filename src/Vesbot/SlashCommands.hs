@@ -33,7 +33,7 @@ basicSlashCommand :: T.Text    -> -- Slash Command Name
 basicSlashCommand name regDesc statefulText
   = SlashCommand
     { commandName = name
-    , commandRegistration = createChatInput name regDesc
+    , commandRegistration = createChatInput name regDesc --createChatInput is from Discord.Internal.Types.ApplicationCommands
     , commandHandler = \intr _ -> do
         iomessage <- liftIO statefulText
         void . restCall $

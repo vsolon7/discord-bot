@@ -15,7 +15,7 @@ module Vesbot.Utils
   , sendMessage
   ) where
 
-import Vesbot.Logging as Logging (echo)
+import Vesbot.Logging as Logging (log, LogType(..))
 
 import Discord
 import Discord.Types
@@ -64,8 +64,8 @@ announce acid content = do
   let a = R.CreateMessage acid content in do
     r <- restCall $ R.CreateMessage acid content
     case r of
-      Left err -> Logging.echo $ "Error sending an announcement. Discord returned the error:\n" <> showT err
-      _ -> return ()
+      Left err -> Logging.log Error $ "Error sending an announcement. Discord returned the error:\n" <> showT err
+      _ -> Logging.log Info $ "Successfully sent an announcement."
 
 sendMessage :: ChannelId -> Maybe MessageId -> T.Text -> DiscordHandler ()
 sendMessage cid replyTo content =
@@ -76,5 +76,5 @@ sendMessage cid replyTo content =
   in do
     r <- restCall $ R.CreateMessageDetailed cid opts
     case r of
-      Left err -> Logging.echo $ "Error sending a message. Discord returned the error:\n" <> showT err
-      _ -> return ()
+      Left err -> Logging.log Error $ "Error sending a message. Discord returned the error:\n" <> showT err
+      _ -> Logging.log Info $ "Successfully sent a message to channel " <> showT cid <> "."

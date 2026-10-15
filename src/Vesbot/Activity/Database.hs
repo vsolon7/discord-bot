@@ -4,9 +4,8 @@ module Vesbot.Activity.Database
   , withDB
   , initUserActivityTable
   , initEmojiUseTable
-  , incrementUserReactionActivity
-  , decrementUserReactionActivity
-  , incrementUserMessageActivity
+  , modifyReactionActivity
+  , incrementMessageActivity
   ) where
 
 import Vesbot.Utils (showT)
@@ -24,21 +23,17 @@ initUserActivityTable :: DBConnection -> IO ()
 initUserActivityTable dbconn = withDB dbconn $ \conn ->
   SQL.execute_ conn
     "CREATE TABLE IF NOT EXISTS user_activity(\
-    \  guild_id         TEXT NOT NULL,\
-    \  user_id          TEXT NOT NULL,\
+    \  user_id          TEXT NOT NULL PRIMARY KEY,\
     \  num_messages     INTEGER NOT NULL DEFAULT 0,\
     \  num_reactions    INTEGER NOT NULL DEFAULT 0,\
-    \  reactions_score   REAL NOT NULL DEFAULT 0,\
-    \  messages_score   REAL NOT NULL DEFAULT 0,\
-    \  PRIMARY KEY      (guild_id, user_id)) STRICT"
+    \  num_reactees     INTEGER NOT NULL DEFAULT 0) WITHOUT ROWID, STRICT"
 
 initEmojiUseTable :: DBConnection -> IO ()
 initEmojiUseTable dbconn = withDB dbconn $ \conn -> do
   SQL.execute_ conn
     "CREATE TABLE IF NOT EXIST emoji_use_data(\
-    \  guild_id         TEXT NOT NULL,\
     \  emoji_id         TEXT NOT NULL,\
-    \  use_time         INTEGER NOT NULL) STRICT"
+    \  use_time         INTEGER NOT NULL) WITHOUT ROWID STRICT"
 
   SQL.execute_ conn
     "CREATE INDEX IF NOT EXISTS idx_use_time \
@@ -55,42 +50,38 @@ getAllUserActivity dbconn = withDB dbconn $ \conn ->
   SQL.query_ conn "SELECT * FROM user_activity"
 
 
-incrementUserReactionActivity :: DBConnection -> GuildId -> UserId -> Double -> IO ()
-incrementUserReactionActivity dbconn gid uid score = withDB dbconn $
+modifyReactionActivity :: DBConnection -> UserId -> UserId -> IO ()
+modifyReactionActivity dbconn reacter reactee = withDB dbconn $
+  \conn ->
+    SQL.withTransaction conn $ do
+      SQL.executeNamed conn
+        "INSERT INTO user_activity (user_id, num_reactions) VALUES (:reactee, 1)\
+        \ON CONFLICT(user_id)\
+        \DO UPDATE SET num_reactions = num_reactions + 1"
+        [ ":reactee" SQL.:= showT reactee ]
+      SQL.executeNamed conn
+        "INSERT INTO user_activity (user_id, num_reactees) VALUES (:reacter, 1)\
+        \ON CONFLICT(user_id)\
+        \DO UPDATE SET num_reactions = num_reactions + 1;"
+        [ ":reacter" SQL.:= (showT reacter) ]
+
+
+incrementMessageActivity :: DBConnection -> UserId -> IO ()
+incrementMessageActivity dbconn uid = withDB dbconn $
   \conn ->
     SQL.executeNamed conn
-      "INSERT INTO user_activity (guild_id, user_id, num_reactions, reactions_score) VALUES (:gid, :uid, 1, :score)\
-      \ON CONFLICT(guild_id, user_id)\
-      \DO UPDATE SET num_reactions = num_reactions + 1, reactions_score = reactions_score + :score"
-      [ ":uid" SQL.:= (showT uid), ":gid" SQL.:= (showT gid), ":score" SQL.:= score ]
+      "INSERT INTO user_activity (user_id, num_messages) VALUES (:uid, 1)\
+      \ON CONFLICT(user_id)\
+      \DO UPDATE SET num_messages = num_messages + 1"
+      [ ":uid" SQL.:= (showT uid) ]
 
 
-decrementUserReactionActivity :: DBConnection -> GuildId -> UserId -> Double -> IO ()
-decrementUserReactionActivity dbconn gid uid score = withDB dbconn $
-  \conn ->
-    SQL.executeNamed conn
-      "INSERT INTO user_activity (guild_id, user_id, num_reactions, reactions_score) VALUES (:gid, :uid, 0, 0)\
-      \ON CONFLICT(guild_id, user_id)\
-      \DO UPDATE SET num_reactions = MAX(num_reactions - 1, 0), reactions_score = MAX(reactions_score - :score, 0)"
-      [ ":uid" SQL.:= (showT uid), ":gid" SQL.:= (showT gid), ":score" SQL.:= score ]
-
-
-incrementUserMessageActivity :: DBConnection -> GuildId -> UserId -> Double -> IO ()
-incrementUserMessageActivity dbconn gid uid score = withDB dbconn $
-  \conn ->
-    SQL.executeNamed conn
-      "INSERT INTO user_activity (guild_id, user_id, num_messages, messages_score) VALUES (:gid, :uid, 1, :score)\
-      \ON CONFLICT(guild_id, user_id)\
-      \DO UPDATE SET num_messages = num_messages + 1, messages_score = messages_score + :score"
-      [ ":uid" SQL.:= (showT uid), ":gid" SQL.:= (showT gid), ":score" SQL.:= score ]
-
-
-updateEmojiUse :: DBConnection -> GuildId -> T.Text -> UTCTime -> IO ()
-updateEmojiUse dbconn gid eid t = withDB dbconn $
+addEmojiUse :: DBConnection -> T.Text -> UTCTime -> IO ()
+addEmojiUse dbconn eid t = withDB dbconn $
   \conn -> do
     SQL.execute conn
-      "INSERT INTO emoji_use_data (guild_id, emoji_id, use_time) VALUES (?, ?, ?)"
-      (showT gid, eid, utcToInt t)
+      "INSERT INTO emoji_use_data (emoji_id, use_time) VALUES (?, ?)"
+      (eid, utcToInt t)
 
 
 -- getEmojiActivity :: DBConnection -> T.Text -> UTCTime -> IO EmojiActivity
