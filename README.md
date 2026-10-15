@@ -18,7 +18,7 @@ When program starts, the bot reads in a bunch of initial data and initializes va
 
 In `Main.hs`, we take the configuration data and use it to run the bot with the `runDiscord` function mentioned above. Nothing else happens.
 
-Now, `runDiscord` has a `discordOnStart` and `discordOnEvent`options to define actions for when the bot establishes the connection with Discord and when the bot receives Discord events. When the bot starts, it initializes the job scheduler process via `runScheduler` defined in `JSONScheduler.Scheduler` (which corresponds to the file `src/JSONScheduler/Scheduler.hs`). This function essentially just periodically checks a database for the next scheduled action (it computes the time `T` until the next scheduled action and waits `max(T, 1 hour)`. When a job is scheduled, the scheduler recomputes the time `T` until the next soonest action and waits for `max(T, 1 hour)`). After this, the bot continuously monitors for Discord events. When one comes in, it *forks a new thread* and passes the event data to `eventHandler` defined in `Vesbot.Handler`
+Now, `runDiscord` has `discordOnStart` and `discordOnEvent` functions that define what actions to take when bot establishes the connection with Discord and when the bot receives Discord events, respectively. When the bot starts, it initializes the job scheduler process via `runScheduler` defined in `JSONScheduler.Scheduler` (which corresponds to the file `src/JSONScheduler/Scheduler.hs`). This function essentially just periodically checks a database for the next scheduled action (it computes the time `T` until the next scheduled action and waits `max(T, 1 hour)`. When a job is scheduled, the scheduler recomputes the time `T` until the next soonest action and waits for `max(T, 1 hour)`). After this, the bot continuously monitors for Discord events. When one comes in, it *forks a new thread* and passes the event data to `eventHandler` defined in `Vesbot.Handler`
 
 ## Event Handler
 the `eventHandler` pattern matches on the type of event and delegates to more specialized function. The first thing that happens is the "Ready" event. When this happens, the bot tries to register the various application commands defined in `mySlashCommands :: [SlashCommand]` found in `Vesbot.SlashCommands` (many of them are/will be simply imported from modules defined in `Vesbot.X.Commands`) and it unregisters the ones that are "out of date", meaning they were registered by the last instance of the bot, but not the current one.
@@ -48,7 +48,7 @@ The way it does this is with a library I wrote called JSONScheduler, which is st
 
 The way the scheduler knows what action to take when a job is due is that it takes in a function ``handler :: a -> IO ()`` (the monad is actually slightly more general than `IO`, but you can/should think of it as `IO`). What is `a`? It's a data type with `Data.Aeson` `FromJSON` and `ToJSON` instance that bundles together all of the necessary information to actually do the action. The scheduler stores the JSON representation in the database when `scheduleJob` is called for that action `a`. When it's time for `a` to fire, it converts it from JSON to something of type `a` again, and then passes that to the event handler. So the event handler function that is passed to `runScheduler` is going to be something like
 
-```
+```hs
 handler :: a -> IO ()
 handler action = case action of
 ActionOne d1 d2 ... dn -> functionOne d1 d2 ... dn
