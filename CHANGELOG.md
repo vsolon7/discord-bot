@@ -1,4 +1,4 @@
-# Revision history for argument-counter
+# Revision history for ves-bot
 
 ## 0.1.0.0 -- YYYY-mm-dd
 

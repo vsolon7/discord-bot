@@ -1,0 +1,1057 @@
+[
+  [
+    "holiday:new_years",
+    {
+      "contents": "Happy New Years!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        1,
+        1,
+        "00:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:groundhog_day",
+    {
+      "contents": "Happy Groundhog Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        2,
+        2,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:valentines_day",
+    {
+      "contents": "Happy Valentine's Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        2,
+        14,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:st_patricks_day",
+    {
+      "contents": "Happy St. Patrick's Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        3,
+        17,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:april_fools_day",
+    {
+      "contents": "Happy April Fools' Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        4,
+        1,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:earth_day",
+    {
+      "contents": "Happy Earth Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        4,
+        22,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:cinco_de_mayo",
+    {
+      "contents": "Happy Cinco de Mayo!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        5,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:juneteenth",
+    {
+      "contents": "Happy Juneteenth!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        19,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:independence_day",
+    {
+      "contents": "Happy Fourth of July!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        7,
+        4,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:halloween",
+    {
+      "contents": "Happy Halloween!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        10,
+        31,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:veterans_day",
+    {
+      "contents": "Happy Veterans Day! Thank you to all who have served.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        11,
+        11,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:christmas_eve",
+    {
+      "contents": "Merry Christmas Eve!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        12,
+        24,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:christmas",
+    {
+      "contents": "Merry Christmas!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        12,
+        25,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:new_years_eve",
+    {
+      "contents": "Happy New Year's Eve!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        12,
+        31,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:flag_of_canada_day",
+    {
+      "contents": "Happy National Flag of Canada Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        2,
+        15,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:national_indigenous_peoples_day",
+    {
+      "contents": "Happy National Indigenous Peoples Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        21,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:saint_jean_baptiste_day",
+    {
+      "contents": "Bonne Fête nationale du Québec!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        24,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:multiculturalism_day",
+    {
+      "contents": "Happy Canadian Multiculturalism Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        27,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:canada_day",
+    {
+      "contents": "Happy Canada Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        7,
+        1,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:boxing_day",
+    {
+      "contents": "Happy Boxing Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        12,
+        26,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:epiphany",
+    {
+      "contents": "God Trettondedag jul! / Frohes Dreikönigsfest!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        1,
+        6,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:valborg",
+    {
+      "contents": "Glad Valborg!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        4,
+        30,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:labour_day",
+    {
+      "contents": "Glad första maj! / Schönen Tag der Arbeit! / Bonne Fête du Travail !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        1,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:victoire_1945",
+    {
+      "contents": "Aujourd'hui, nous commémorons la Victoire du 8 mai 1945.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        8,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:sweden_national_day",
+    {
+      "contents": "Glad nationaldag!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        6,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:fete_de_la_musique",
+    {
+      "contents": "Bonne Fête de la Musique !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        21,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:bastille_day",
+    {
+      "contents": "Bonne Fête nationale ! Vive la France !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        7,
+        14,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:assumption",
+    {
+      "contents": "Joyeuse fête de l'Assomption ! / Schöne Mariä Himmelfahrt!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        8,
+        15,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:german_unity_day",
+    {
+      "contents": "Frohen Tag der Deutschen Einheit!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        10,
+        3,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:all_saints_day",
+    {
+      "contents": "Bonne Toussaint ! / Frohes Allerheiligen!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        11,
+        1,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:nikolaustag",
+    {
+      "contents": "Fröhlichen Nikolaustag!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        12,
+        6,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:lucia",
+    {
+      "contents": "God Lucia!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        12,
+        13,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:mlk_day",
+    {
+      "contents": "Today is Martin Luther King Jr. Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        1,
+        "monday",
+        3,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:presidents_day",
+    {
+      "contents": "Happy Presidents' Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        2,
+        "monday",
+        3,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:family_day",
+    {
+      "contents": "Happy Family Day! / Joyeuse Fête de la famille !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        2,
+        "monday",
+        3,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:arbor_day",
+    {
+      "contents": "Happy Arbor Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        4,
+        "friday",
+        -1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:mothers_day",
+    {
+      "contents": "Happy Mother's Day! / Alles Gute zum Muttertag!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        "sunday",
+        2,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:memorial_day",
+    {
+      "contents": "Today is Memorial Day. We remember those who died in service.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        "monday",
+        -1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:fete_des_meres_mors_dag",
+    {
+      "contents": "Bonne Fête des Mères ! / Glad mors dag!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        "sunday",
+        -1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:fathers_day",
+    {
+      "contents": "Happy Father's Day! / Bonne Fête des Pères !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        "sunday",
+        3,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:civic_holiday",
+    {
+      "contents": "Happy Civic Holiday!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        8,
+        "monday",
+        1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:labor_day",
+    {
+      "contents": "Happy Labor Day! / Joyeuse Fête du Travail !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        9,
+        "monday",
+        1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:erntedankfest",
+    {
+      "contents": "Frohes Erntedankfest!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        10,
+        "sunday",
+        1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:columbus_day",
+    {
+      "contents": "Today is Columbus Day / Indigenous Peoples' Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        10,
+        "monday",
+        2,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:canadian_thanksgiving",
+    {
+      "contents": "Happy Thanksgiving! / Joyeuse Action de grâce !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        10,
+        "monday",
+        2,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:fars_dag",
+    {
+      "contents": "Glad fars dag!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        11,
+        "sunday",
+        2,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:beaujolais_nouveau",
+    {
+      "contents": "Le Beaujolais nouveau est arrivé !",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        11,
+        "thursday",
+        3,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:thanksgiving",
+    {
+      "contents": "Happy Thanksgiving!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        11,
+        "thursday",
+        4,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:us_dst_start",
+    {
+      "contents": "Daylight saving time started today in the US and Canada. Clocks moved forward an hour.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        3,
+        "sunday",
+        2,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:pi_day",
+    {
+      "contents": "Happy π Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        3,
+        14,
+        "13:59:26"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:march_equinox",
+    {
+      "contents": "Today is the March equinox, the first day of spring in the Northern Hemisphere.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        3,
+        20,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:eu_dst_start",
+    {
+      "contents": "Sommerzeit! / Heure d'été ! / Sommartid! Daylight saving time started today in Europe.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        3,
+        "sunday",
+        -1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:tax_day",
+    {
+      "contents": "Today is Tax Day in the US. Hopefully you've filed!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        4,
+        15,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:star_wars_day",
+    {
+      "contents": "May the Fourth be with you!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        4,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:towel_day",
+    {
+      "contents": "Happy Towel Day! Don't forget your towel, and don't panic.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        5,
+        25,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:june_solstice",
+    {
+      "contents": "Today is the June solstice, the longest day of the year in the Northern Hemisphere.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        21,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:tau_day",
+    {
+      "contents": "Happy τ Day!",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        6,
+        28,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:world_emoji_day",
+    {
+      "contents": "Happy World Emoji Day! 🎉",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        7,
+        17,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:moon_landing",
+    {
+      "contents": "On this day in 1969, Apollo 11 landed on the Moon.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        7,
+        20,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:pi_approximation_day",
+    {
+      "contents": "Happy Pi Approximation Day! 22/7 ≈ 3.142857",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        7,
+        22,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:talk_like_a_pirate_day",
+    {
+      "contents": "Ahoy, me hearties! Happy International Talk Like a Pirate Day! 🏴‍☠️",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        9,
+        19,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:september_equinox",
+    {
+      "contents": "Today is the September equinox, the first day of autumn in the Northern Hemisphere.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        9,
+        22,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:mole_day",
+    {
+      "contents": "Happy Mole Day! 6.02 × 10²³",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        10,
+        23,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "holiday:eu_dst_end",
+    {
+      "contents": "Winterzeit! / Heure d'hiver ! / Vintertid! Daylight saving time ended today in Europe.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        10,
+        "sunday",
+        -1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:us_dst_end",
+    {
+      "contents": "Daylight saving time ended today in the US and Canada. Clocks moved back an hour.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        11,
+        "sunday",
+        1,
+        "13:00:00"
+      ],
+      "tag": "NthWeekday"
+    }
+  ],
+  [
+    "holiday:december_solstice",
+    {
+      "contents": "Today is the December solstice, the shortest day of the year in the Northern Hemisphere.",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        12,
+        21,
+        "13:00:00"
+      ],
+      "tag": "Yearly"
+    }
+  ],
+  [
+    "date:tuesday_the_13th",
+    {
+      "contents": "It's Tuesday the 13th! In Spain and Greece, this is the unlucky one. / ¡Es martes 13! / Τρίτη και 13! 👻",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        13,
+        "tuesday",
+        "13:00:00"
+      ],
+      "tag": "DateOnWeekday"
+    }
+  ],
+  [
+    "date:friday_the_17th",
+    {
+      "contents": "It's Friday the 17th! In Italy, this is the unlucky one. / È venerdì 17! 👻",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        17,
+        "friday",
+        "13:00:00"
+      ],
+      "tag": "DateOnWeekday"
+    }
+  ],
+  [
+    "date:friday_the_13",
+    {
+      "contents": "It's Friday the 13th! 👻",
+      "tag": "SendAnnouncement"
+    },
+    {
+      "contents": [
+        13,
+        "friday",
+        "13:00:00"
+      ],
+      "tag": "DateOnWeekday"
+    }
+  ]
+]
