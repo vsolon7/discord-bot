@@ -2,10 +2,12 @@
 module Vesbot.Config
   ( Env(..)
   , Config(..)
+  , CurrencyConfig(..)
   , initBot
   ) where
 
 import Vesbot.Utils (forM_)
+import Vesbot.Parsing (parseJSON)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Actions (Action(..))
 import Vesbot.Responses as Responses (KeywordResponse, initKeywordResponses)
@@ -26,11 +28,16 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.ByteString.Lazy as BS (putStr)
 
+data CurrencyConfig = CurrencyConfig
+  { currencyName :: T.Text
+  , currencySymbol :: T.Text
+  } deriving (Show, Generic, ToJSON, FromJSON)
 
 data Config = Config
   { cfgGuildId :: GuildId
   , cfgResponses :: [KeywordResponse]
   , cfgAnnouncementCID :: ChannelId
+  , cfgCurrencyInfo :: CurrencyConfig
   }
 
 data Env = Env
@@ -53,6 +60,8 @@ _INITIAL_ACTIONS_FILE :: FilePath
 _INITIAL_ACTIONS_FILE = "appdata/config/initial_actions.json"
 _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE :: FilePath
 _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE = "appdata/config/announcement_channel_id"
+_CURRENCY_CONFIG_FILE :: FilePath
+_CURRENCY_CONFIG_FILE = "appdata/config/currency_info.json"
 
 
 getToken :: IO T.Text
@@ -83,7 +92,13 @@ initBot = do
 
   acid <- readAnnouncementChannelId _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE
 
-  return (t, Env conn s, Config gid krs acid)
+  mcc <- parseJSON _CURRENCY_CONFIG_FILE :: IO (Maybe CurrencyConfig)
+  let cc = case mcc of
+        Nothing -> do
+          error "fatal error." :: CurrencyConfig
+        Just x -> x
+
+  return (t, Env conn s, Config gid krs acid cc)
 
 --TODO: this should really by a use of Vesbot.Parsing.ParseJSON. that function needs to use eitherDecodeFileStrict though
 readJSONActions :: FilePath -> IO [InitialAction]

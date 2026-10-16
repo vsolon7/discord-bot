@@ -24,13 +24,13 @@ import Data.Int (Int64)
 import qualified Data.Text as T
 
 
-parsePredictionCommand :: UTCTime -> Interaction -> Either T.Text (PredictionData, ChannelId)
-parsePredictionCommand currTime (cmd@InteractionApplicationCommand { applicationCommandData = input@ApplicationCommandDataChatInput {} }) =
+parsePredictionCommand :: UTCTime -> Interaction -> Maybe OptionsData -> Either T.Text (PredictionData, ChannelId)
+parsePredictionCommand currTime (cmd@InteractionApplicationCommand {}) opts =
   do
     dataValues <-
       maybeToEither
         "Could not access the prediction command's option fields."
-        (optionsData input)
+        opts
     let confidence = -- :: Maybe Double, since Nothing is OK; confidence level isn't a required input
           extractNumberOption
             "confidence"
@@ -74,7 +74,7 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand { application
       , cid
       )
 
-parsePredictionCommand _ _ = Left "Tried to parse an interaction that is not a chat input slash command when parsing the prediction command."
+parsePredictionCommand _ _ _ = Left "Tried to parse an interaction that is not a chat input slash command when parsing the prediction command."
 
 -- | Generate the bot reply to the command. parsePredictionCommand returns either an error message or a record of the
 -- relevant prediction command data. We must either respond with an (ephemeral) error, or else form the bot reply
@@ -127,10 +127,10 @@ makePrediction :: Env -> SlashCommand
 makePrediction env = SlashCommand
   { commandName = "predict"
   , commandRegistration = Just reg
-  , commandHandler = \intr _ -> do
+  , commandHandler = \intr opts -> do
       currTime <- liftIO getCurrentTime
       let iTok = interactionToken intr -- save the interaction token to get the message ID of the bot's reply
-      let mpd = parsePredictionCommand currTime intr :: Either T.Text (PredictionData, ChannelId)
+      let mpd = parsePredictionCommand currTime intr opts :: Either T.Text (PredictionData, ChannelId)
       let botReply = createInitialPredictionResponse currTime mpd
 
       -- Respond with the error or the correct reply

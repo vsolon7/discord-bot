@@ -39,6 +39,7 @@ library
     Vesbot.Utils,
     Vesbot.Handler.Interactions,
     Vesbot.Handler.Messages,
+    Vesbot.Handler.Reactions,
     Vesbot.Responses,
     Vesbot.SlashCommands,
     Vesbot.SlashCommands.Types,
@@ -51,6 +52,10 @@ library
     Vesbot.Predictions.Database,
     Vesbot.Predictions.Types,
     Vesbot.Predictions.Commands
+    Vesbot.Currency,
+    Vesbot.Currency.Types,
+    Vesbot.Currency.Database,
+    Vesbot.Currency.Commands
   build-depends:
     base >= 4.20.0.0,
     discord-haskell == 1.19.0,

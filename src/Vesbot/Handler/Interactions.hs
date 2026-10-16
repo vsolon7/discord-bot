@@ -20,7 +20,7 @@ interactionHandler cfg env =
     cmd@InteractionApplicationCommand
       { applicationCommandData = input@ApplicationCommandDataChatInput {}
       } ->
-        case find (\c -> applicationCommandDataName input == commandName c) (SC.slashCommands env) of
+        case find (\c -> applicationCommandDataName input == commandName c) (SC.slashCommands env cfg) of
           Just found -> do
             (SC.commandHandler found) cmd (optionsData input)
           Nothing ->

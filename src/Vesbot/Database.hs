@@ -10,6 +10,7 @@ import Vesbot.Database.Types (DBConnection, withDB)
 import qualified Vesbot.ArgumentTimer.Database as ArgumentTimer (initTable)
 import qualified Vesbot.Predictions.Database as Predictions (initTable)
 import qualified Vesbot.Activity.Database as Activity (initUserActivityTable)
+import qualified Vesbot.Currency.Database as Currency (initCurrencyTable)
 
 import Control.Concurrent.MVar (newMVar)
 import Database.SQLite.Simple as SQL
@@ -23,6 +24,7 @@ initDBConnection databaseFile = do
   ArgumentTimer.initTable threadSafeDBConnection
   Predictions.initTable threadSafeDBConnection
   Activity.initUserActivityTable threadSafeDBConnection
+  Currency.initCurrencyTable threadSafeDBConnection
 
   return threadSafeDBConnection
 

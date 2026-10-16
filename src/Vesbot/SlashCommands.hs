@@ -1,19 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.SlashCommands
-  ( SlashCommand
-  , commandName
-  , commandRegistration
-  , commandHandler
+  ( SlashCommand(..)
   , slashCommands
   ) where
 
 import Vesbot.Utils (liftIO, void, showT)
-import Vesbot.Config (Env(..))
+import Vesbot.Config (Env(..), Config(..))
 import Vesbot.Database (DBConnection)
 import Vesbot.SlashCommands.Types
 
 import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
 import Vesbot.Predictions.Commands (makePrediction)
+import Vesbot.Currency.Commands (viewCurrencyCommand, payCommand)
 
 import Discord
 import Discord.Internal.Types.ApplicationCommands
@@ -44,14 +42,16 @@ basicSlashCommand name regDesc statefulText
     }
 
 
-slashCommands :: Env -> [SlashCommand]
-slashCommands env =
+slashCommands :: Env -> Config -> [SlashCommand]
+slashCommands env cfg =
   [ ping
   , time
   , glorp
   , viewAC (envDBConnection env)
   , resetAC (envDBConnection env)
   , makePrediction env
+  , viewCurrencyCommand (envDBConnection env) cfg
+  , payCommand (envDBConnection env) cfg
   ]
 
 
@@ -59,7 +59,7 @@ ping :: SlashCommand
 ping =
   basicSlashCommand
     "ping"
-    "Responds 'pong'"
+    "Responds 'pong' if the bot is alive"
     (return "pong!")
 
 
@@ -67,7 +67,7 @@ time :: SlashCommand
 time =
   basicSlashCommand
     "time"
-    "Displays the Current time in UTC."
+    "Displays the Current time in UTC"
     (do x <- getCurrentTime; return $ "The current time is " <> showT x <> ".")
 
 
@@ -75,7 +75,7 @@ glorp :: SlashCommand
 glorp =
   basicSlashCommand
     "glorp"
-    "Prints a giant glorp."
+    "Prints a giant glorp"
     (return $ ".\n" <> giantGlorp)
   where
     giantGlorp :: T.Text

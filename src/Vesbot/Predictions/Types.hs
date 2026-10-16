@@ -25,12 +25,12 @@ data PredictionData = PredictionData
 
 
 instance SQL.ToRow PredictionData where
-  toRow pd  =
-    [ SQL.SQLText (showT . predictionUserId $ pd)
-    , SQL.SQLText (predictionContent pd)
-    , fromMaybe SQL.SQLNull (fmap SQL.SQLFloat (predictionConfidence pd))
-    , SQL.SQLInteger (utcToInt . predictionMadeDate $ pd)
-    , SQL.SQLInteger (utcToInt . predictionDueDate $ pd)
+  toRow (PredictionData uid content confidence made due)  =
+    [ SQL.SQLText (showT uid)
+    , SQL.SQLText content
+    , fromMaybe SQL.SQLNull (fmap SQL.SQLFloat confidence)
+    , SQL.SQLInteger (utcToInt made)
+    , SQL.SQLInteger (utcToInt due)
     ]
 
 -- see Vesbot.Database.Types for the FromField DiscordId instance
