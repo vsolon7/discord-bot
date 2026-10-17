@@ -7,7 +7,7 @@ import Vesbot.Config (Config(..), Env(..))
 import Vesbot.Utils (find)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Database (DBConnection)
-import Vesbot.SlashCommands as SC
+import Vesbot.BotCommands as BC
 
 import Discord
 import Discord.Interactions
@@ -17,13 +17,18 @@ import Discord.Interactions
 interactionHandler :: Config -> Env -> Interaction -> DiscordHandler ()
 interactionHandler cfg env =
   \intr -> case intr of
-    cmd@InteractionApplicationCommand
-      { applicationCommandData = input@ApplicationCommandDataChatInput {}
-      } ->
-        case find (\c -> applicationCommandDataName input == commandName c) (SC.slashCommands env cfg) of
+    cmd@InteractionApplicationCommand {} -> case applicationCommandData cmd of
+      slashInput@ApplicationCommandDataChatInput {} ->
+        case find (\c -> applicationCommandDataName slashInput == commandName c) (BC.slashCommands env cfg) of
           Just found -> do
-            (SC.commandHandler found) cmd (optionsData input)
+            (BC.slashCommandHandler found) cmd (optionsData slashInput)
           Nothing ->
             Logging.log Warn $ "Somehow got unknown slash command (registrations out of date?)"
+      msgInput@ApplicationCommandDataMessage {} ->
+        case find (\c -> applicationCommandDataName msgInput == commandName c) (BC.messageCommands env) of
+          Just found -> do
+            (BC.messageCommandHandler found) cmd
+          Nothing ->
+            Logging.log Warn $ "Somehow got unknown message command (registrations out of date?)"
     _ ->
       return () -- Unexpected/unsupported interaction type

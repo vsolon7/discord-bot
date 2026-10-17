@@ -10,7 +10,7 @@ import Vesbot.Parsing (extractNumberOption, extractStringOption, parseDateInput,
 import Vesbot.Actions (Action(..))
 import Vesbot.Predictions.Types
 import Vesbot.Predictions.Database
-import Vesbot.SlashCommands.Types (SlashCommand(..))
+import Vesbot.BotCommands.Types (BotCommand(..))
 
 import JSONScheduler.Scheduler (Schedule(..), Scheduler(..), scheduleJob)
 
@@ -123,11 +123,11 @@ predictionDataToAnnounceAction pd pid cid mid =
     AnnounceDuePrediction pid cid mid
 
 
-makePrediction :: Env -> SlashCommand
+makePrediction :: Env -> BotCommand
 makePrediction env = SlashCommand
   { commandName = "predict"
   , commandRegistration = Just reg
-  , commandHandler = \intr opts -> do
+  , slashCommandHandler = \intr opts -> do
       currTime <- liftIO getCurrentTime
       let iTok = interactionToken intr -- save the interaction token to get the message ID of the bot's reply
       let mpd = parsePredictionCommand currTime intr opts :: Either T.Text (PredictionData, ChannelId)

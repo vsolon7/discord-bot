@@ -10,7 +10,7 @@ import Vesbot.Config (Config(..), CurrencyConfig(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Currency.Types (ViewCurrencyCommandData(..), PayCommandData(..), CurrencyQuery(..), CurrencyUpdate(..))
 import Vesbot.Currency.Database (getCurrency, updateCurrency)
-import Vesbot.SlashCommands.Types (SlashCommand(..))
+import Vesbot.BotCommands.Types (BotCommand(..))
 
 import Discord
 import Discord.Types
@@ -94,11 +94,11 @@ createViewCurrencyResponse dbconn ccfg vccd =
           return (ephemeralResponseBasic response)
 
 
-payCommand :: DBConnection -> Config -> SlashCommand
+payCommand :: DBConnection -> Config -> BotCommand
 payCommand dbconn cfg = SlashCommand
   { commandName = "pay"
   , commandRegistration = Just reg
-  , commandHandler = \intr opts -> do
+  , slashCommandHandler = \intr opts -> do
       let pcd = parsePayCommand intr opts :: Either T.Text PayCommandData
       botReply <- liftIO $ createPaymentResponse dbconn (cfgCurrencyInfo cfg) pcd
       -- Respond with the error or the correct reply
@@ -125,11 +125,11 @@ payCommand dbconn cfg = SlashCommand
           (Just False)
 
 
-viewCurrencyCommand :: DBConnection -> Config -> SlashCommand
+viewCurrencyCommand :: DBConnection -> Config -> BotCommand
 viewCurrencyCommand dbconn cfg = SlashCommand
   { commandName = "viewcurrency"
   , commandRegistration = Just reg
-  , commandHandler = \intr opts -> do
+  , slashCommandHandler = \intr opts -> do
       let vccd = parseViewCurrencyCommand intr opts :: Either T.Text ViewCurrencyCommandData
       botReply <- liftIO $ createViewCurrencyResponse dbconn (cfgCurrencyInfo cfg) vccd
       -- Respond with the error or the correct reply

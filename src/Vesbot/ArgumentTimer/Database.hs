@@ -1,10 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.ArgumentTimer.Database where
 
+import Vesbot.Utils (showT)
 import Vesbot.Database.Types (DBConnection, withDB)
 import Vesbot.Parsing (intToUTC, utcToInt)
 
+import Discord.Types
+
 import Database.SQLite.Simple as SQL
+import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Data.Int (Int64)
 
@@ -13,30 +17,32 @@ initTable :: DBConnection -> IO ()
 initTable dbconn = withDB dbconn $
   \conn -> do
     SQL.execute_ conn
-      "CREATE TABLE IF NOT EXISTS argument_timer(\
-      \  id      INTEGER PRIMARY KEY,\
-      \  time    INTEGER NOT NULL) STRICT"
+      "CREATE TABLE  IF NOT EXISTS argument_timer(\
+      \  id          INTEGER PRIMARY KEY,\
+      \  time        INTEGER NOT NULL,\
+      \  channel_id  TEXT NOT NULL,\
+      \  message_id  TEXT NOT NULL) STRICT"
 
 
-getLastArgumentTime :: DBConnection -> IO (Maybe UTCTime)
-getLastArgumentTime dbconn = do
+getLastArgument :: DBConnection -> IO (Maybe (UTCTime, T.Text, T.Text))
+getLastArgument dbconn = do
   res <- lookup
-  return (fmap intToUTC res)
+  return res
   where
-    q = "SELECT time FROM argument_timer \
+    q = "SELECT time, channel_id, message_id FROM argument_timer \
         \WHERE id = (SELECT MAX(id) FROM argument_timer)"
     lookup = withDB dbconn $
       \conn -> do
-        res <- SQL.query_ conn q :: IO [SQL.Only Int64]
+        res <- SQL.query_ conn q :: IO [(Int64, T.Text, T.Text)]
         case res of
           []    -> return Nothing
-          (SQL.Only t:_) -> return (Just t)
+          ((t, cid, mid):_) -> return (Just (intToUTC t, cid, mid))
 
 
-updateArgumentTime :: DBConnection -> UTCTime -> IO ()
-updateArgumentTime dbconn time = withDB dbconn $
+updateArgumentTime :: DBConnection -> UTCTime -> ChannelId -> MessageId -> IO ()
+updateArgumentTime dbconn time cid mid = withDB dbconn $
   \conn -> do
-    SQL.execute conn q [utcToInt time]
+    SQL.execute conn q (utcToInt time, showT cid, showT mid)
   where
-    q = "INSERT INTO argument_timer (time) \
-        \VALUES (?)"
+    q = "INSERT INTO argument_timer (time, channel_id, message_id) \
+        \VALUES (?, ?, ?)"
