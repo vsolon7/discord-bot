@@ -30,5 +30,9 @@ interactionHandler cfg env =
             (BC.messageCommandHandler found) cmd
           Nothing ->
             Logging.log Warn $ "Somehow got unknown message command (registrations out of date?)"
-    _ ->
-      return () -- Unexpected/unsupported interaction type
+    i@InteractionComponent { componentData = b@ButtonData {} } -> buttonInteractionHandler i
+    _ -> return () -- Unexpected/unsupported interaction type
+
+
+buttonInteractionHandler :: Interaction -> DiscordHandler ()
+buttonInteractionHandler i@InteractionComponent {} = return ()

@@ -38,5 +38,14 @@ announceDuePrediction env pid cid mid = do
             "Were they correct?"
       in do 
         Logging.log Info $ "Announcing the due prediction with ID " <> showT pid <> "..."
-        sendMessage cid (Just mid) content
+        let ref = MessageReference (Just mid) (Just cid) Nothing False
+            trueButton = Button ("prediction:" <> showT pid <> ":T") False ButtonStyleSuccess (Just "Yes") Nothing
+            falseButton = Button ("prediction:" <> showT pid <> ":F") False ButtonStyleDanger (Just "No") Nothing
+            actionRow = ActionRowButtons [trueButton, falseButton]
+            opts = R.MessageDetailedOpts content False Nothing Nothing [] Nothing (Just ref) (Just [actionRow]) Nothing
+        r <- restCall $ R.CreateMessageDetailed cid opts
+        case r of
+          Left err -> Logging.log Error $ "Failed to send a prediction announcement. Discord returned the error:\n" <> showT err
+          _ -> Logging.log Info $ "Successfully announced the prediction to channel " <> showT cid <> "."
+
   liftIO $ markAsNotified (envDBConnection env) pid
