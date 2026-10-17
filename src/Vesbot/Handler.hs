@@ -8,7 +8,7 @@ import Vesbot.Database.Types (DBConnection)
 import Vesbot.Handler.Interactions (interactionHandler)
 import Vesbot.Handler.Messages (messageHandler)
 import Vesbot.Handler.Reactions (reactionHandler)
-import Vesbot.SlashCommands as SC
+import Vesbot.BotCommands as BC
 
 import Discord
 import Discord.Types
@@ -36,16 +36,21 @@ onReady :: Env -> Config -> ApplicationId -> GuildId -> DiscordHandler ()
 onReady env cfg appId gId = do
   Logging.log Always $ "Bot ready!"
 
-  appCmdRegistrations <- mapM tryRegistering (SC.slashCommands env cfg)
+  let scs = BC.slashCommands env cfg
+      mcs = BC.messageCommands env
+      allcmds = scs ++ mcs
 
-  case sequence appCmdRegistrations of
+  cmdRegistrations <- mapM tryRegistering allcmds
+
+  case sequence cmdRegistrations of
     Left err ->
-      Logging.log Error $ "Failed to register some commands" <> showT err
+      Logging.log Error $ "Failed to register some slash commands" <> showT err
     Right cmds -> do
-      Logging.log Info $ "Registered " <> showT (length cmds) <> " command(s)."
+      Logging.log Info $ "Registered " <> showT (length cmds) <> " slash command(s)."
       unregisterOutdatedCmds cmds
+
   where
-    tryRegistering cmd = case SC.commandRegistration cmd of
+    tryRegistering cmd = case BC.commandRegistration cmd of
       Just reg -> restCall $ R.CreateGuildApplicationCommand appId gId reg
       Nothing -> return . Left $ RestCallErrorCode 0 "" ""
 

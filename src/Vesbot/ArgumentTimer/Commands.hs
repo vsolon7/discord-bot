@@ -2,12 +2,14 @@
 module Vesbot.ArgumentTimer.Commands where
 
 import Vesbot.Utils (showT, liftIO, void)
+import Vesbot.Parsing (utcToInt)
+import Vesbot.Config (Config(..))
 import Vesbot.Database.Types (DBConnection)
-import Vesbot.ArgumentTimer.Database (getLastArgumentTime, updateArgumentTime)
-import Vesbot.SlashCommands.Types
+import Vesbot.ArgumentTimer.Database (getLastArgument, updateArgumentTime)
+import Vesbot.BotCommands.Types
 
 import Discord
-import Discord.Interactions
+import Discord.Interactions as I
 import qualified Discord.Requests as R
 
 import Data.Time (getCurrentTime, diffUTCTime, NominalDiffTime)
@@ -15,20 +17,45 @@ import Data.List (intersperse, mapAccumL)
 import qualified Data.Text as T
 
 
-viewAC :: DBConnection -> SlashCommand
-viewAC dbconn = SlashCommand
+viewAC :: DBConnection -> Config -> BotCommand
+viewAC dbconn cfg = SlashCommand
   { commandName = "viewac"
-  , commandRegistration = createChatInput "viewac" "View the time since the last obnoxious argument"
-  , commandHandler = \intr _ -> do
-      mt <- liftIO . getLastArgumentTime $ dbconn
+  , commandRegistration = I.createChatInput "viewac" "View the last obnoxious argument"
+  , slashCommandHandler = \intr _ -> do
+      mt <- liftIO . getLastArgument $ dbconn
       now <- liftIO getCurrentTime
 
       let reply = case mt of
             Nothing -> "There have been no obnoxious arguments so far!"
-            Just t ->
+            Just (t, cid, mid) ->
               let since = now `diffUTCTime` t
-              in  "Time since the last obnoxious argument: " <> formatDiffTime since <> "."
+                  timestamp = "<t:" <> (showT . utcToInt $ t) <> ":R>"
+                  link = "https://discord.com/channels/" <> (showT . cfgGuildId $ cfg) <> "/" <> cid <> "/" <> mid
+              in "The last obnoxious argument occured " <> timestamp <> ". You can view it here:\n" <> link
 
+      void . restCall $
+        R.CreateInteractionResponse
+          (interactionId intr)
+          (interactionToken intr)
+          (interactionResponseBasic reply)
+  }
+
+
+resetAC :: DBConnection -> BotCommand
+resetAC dbconn = MessageCommand
+  { commandName = "resetac"
+  , commandRegistration = reg
+  , messageCommandHandler = \intr -> do
+      now <- liftIO getCurrentTime
+      let d = applicationCommandData intr
+          mcid = interactionChannelId intr
+          mid = applicationCommandDataTargetMessageId d
+      reply <-
+        case mcid of
+          Nothing -> return ("Error getting channel ID for the command.")
+          Just cid -> do
+            liftIO $ updateArgumentTime dbconn now cid mid
+            return ("Time since the last obnoxious argument: 0 days...")
       void . restCall $
         R.CreateInteractionResponse
           (interactionId intr)
@@ -36,29 +63,4 @@ viewAC dbconn = SlashCommand
           (interactionResponseBasic reply)
   }
   where
-    formatDiffTime :: NominalDiffTime -> T.Text
-    formatDiffTime time = T.concat . intersperse ", " $ [ showT n <> " " <> u | (n,u) <- reduceAndPlural ]
-      where
-      (intTime, _) = properFraction time
-      (days, [seconds, minutes, hours]) = mapAccumL divMod intTime [60, 60, 24]
-      ps = zip [days, hours, minutes, seconds] ["day", "hour", "minute", "second"]
-      reduceAndPlural = map (\(n, u) -> (n, plural n u)) . filter (\p -> fst p /= 0) $ ps
-
-      plural :: Int -> T.Text -> T.Text
-      plural n t = if n /= 1 then t <> "s" else t
-
-
-resetAC :: DBConnection -> SlashCommand
-resetAC dbconn = SlashCommand
-  { commandName = "resetac"
-  , commandRegistration = createChatInput "resetac" "Reset the time since the last obnoxious argument"
-  , commandHandler = \intr _ -> do
-      now <- liftIO getCurrentTime
-      liftIO $ updateArgumentTime dbconn now
-      let reply = "Time since the last obnoxious argument: 0 days..."
-      void . restCall $
-        R.CreateInteractionResponse
-          (interactionId intr)
-          (interactionToken intr)
-          (interactionResponseBasic reply)
-  }
+    reg = Just $ CreateApplicationCommandMessage "resetac" Nothing Nothing (Just False)

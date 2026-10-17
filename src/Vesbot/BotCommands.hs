@@ -1,13 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Vesbot.SlashCommands
-  ( SlashCommand(..)
+module Vesbot.BotCommands
+  ( BotCommand(..)
   , slashCommands
+  , messageCommands
   ) where
 
 import Vesbot.Utils (liftIO, void, showT)
 import Vesbot.Config (Env(..), Config(..))
 import Vesbot.Database (DBConnection)
-import Vesbot.SlashCommands.Types
+import Vesbot.BotCommands.Types
 
 import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
 import Vesbot.Predictions.Commands (makePrediction)
@@ -27,12 +28,12 @@ import Data.Time (getCurrentTime)
 basicSlashCommand :: T.Text    -> -- Slash Command Name
                      T.Text    -> -- Registration Description
                      IO T.Text -> -- Text diplayed in the interaction response, possibly obtained with IO
-                     SlashCommand
+                     BotCommand
 basicSlashCommand name regDesc statefulText
   = SlashCommand
     { commandName = name
     , commandRegistration = createChatInput name regDesc --createChatInput is from Discord.Internal.Types.ApplicationCommands
-    , commandHandler = \intr _ -> do
+    , slashCommandHandler = \intr _ -> do
         iomessage <- liftIO statefulText
         void . restCall $
           R.CreateInteractionResponse
@@ -41,21 +42,25 @@ basicSlashCommand name regDesc statefulText
             (interactionResponseBasic iomessage)
     }
 
-
-slashCommands :: Env -> Config -> [SlashCommand]
+-- | Some are slash commands, some are message commands.
+slashCommands :: Env -> Config -> [BotCommand]
 slashCommands env cfg =
   [ ping
   , time
   , glorp
-  , viewAC (envDBConnection env)
-  , resetAC (envDBConnection env)
+  , viewAC (envDBConnection env) cfg
   , makePrediction env
   , viewCurrencyCommand (envDBConnection env) cfg
   , payCommand (envDBConnection env) cfg
   ]
 
+messageCommands :: Env -> [BotCommand]
+messageCommands env =
+  [ resetAC (envDBConnection env)
+  ]
 
-ping :: SlashCommand
+
+ping :: BotCommand
 ping =
   basicSlashCommand
     "ping"
@@ -63,7 +68,7 @@ ping =
     (return "pong!")
 
 
-time :: SlashCommand
+time :: BotCommand
 time =
   basicSlashCommand
     "time"
@@ -71,7 +76,7 @@ time =
     (do x <- getCurrentTime; return $ "The current time is " <> showT x <> ".")
 
 
-glorp :: SlashCommand
+glorp :: BotCommand
 glorp =
   basicSlashCommand
     "glorp"
