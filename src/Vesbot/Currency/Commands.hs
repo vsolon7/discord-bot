@@ -2,14 +2,15 @@
 module Vesbot.Currency.Commands
   ( payCommand
   , viewCurrencyCommand
+  , viewRichestUsersCommand
   ) where
 
-import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, liftIO, void)
+import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, liftIO, void, forM)
 import Vesbot.Parsing (getUserData, extractUserOption, extractNumberOption)
 import Vesbot.Config (Config(..), CurrencyConfig(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Currency.Types (ViewCurrencyCommandData(..), PayCommandData(..), CurrencyQuery(..), CurrencyUpdate(..))
-import Vesbot.Currency.Database (getCurrency, updateCurrency)
+import Vesbot.Currency.Database (getCurrency, updateCurrency, getRichestUsers)
 import Vesbot.BotCommands.Types (BotCommand(..))
 
 import Discord
@@ -19,6 +20,7 @@ import Discord.Internal.Types.ApplicationCommands
 import Discord.Internal.Types.Interactions
 
 import qualified Data.Text as T
+import Data.List (intersperse)
 
 
 parseViewCurrencyCommand :: Interaction -> Maybe OptionsData -> Either T.Text ViewCurrencyCommandData
@@ -94,6 +96,23 @@ createViewCurrencyResponse dbconn ccfg vccd =
           return (ephemeralResponseBasic response)
 
 
+createViewRichestUsersResponse :: DBConnection -> CurrencyConfig -> IO InteractionResponse
+createViewRichestUsersResponse dbconn ccfg =
+  let cs = currencySymbol ccfg
+  in do
+    qs <- getRichestUsers dbconn
+    let rs =
+          flip map (zip [1..] qs) $ \(n, q) ->
+            let userPing = "<@" <> showT (currencyQueryUser q) <> ">"
+                r = showT n <> ". " <> userPing <> ": " <> cs <> showT (currencyQueryAmount q) <> "."
+            in r
+        response = T.concat (intersperse "\n" rs :: [T.Text])
+        pingPerms = AllowedMentions False False False [] [] True
+        message = InteractionResponseMessage (Just False) (Just response) Nothing (Just pingPerms) Nothing Nothing Nothing []
+    return (InteractionResponseChannelMessage message)
+  
+
+
 payCommand :: DBConnection -> Config -> BotCommand
 payCommand dbconn cfg = SlashCommand
   { commandName = "pay"
@@ -151,3 +170,19 @@ viewCurrencyCommand dbconn cfg = SlashCommand
           (Just $ OptionsValues [ o1 ])
           Nothing
           (Just False)
+
+
+viewRichestUsersCommand :: DBConnection -> Config -> BotCommand
+viewRichestUsersCommand dbconn cfg =
+  let cs = currencySymbol . cfgCurrencyInfo $ cfg
+  in  SlashCommand
+        { commandName = "rich"
+        , commandRegistration = createChatInput "rich" ("View the users with the most " <> cs)
+        , slashCommandHandler = \intr _ -> do
+            botReply <- liftIO $ createViewRichestUsersResponse dbconn (cfgCurrencyInfo cfg)
+            void . restCall $
+              R.CreateInteractionResponse
+                (interactionId intr)
+                (interactionToken intr)
+                botReply
+        }

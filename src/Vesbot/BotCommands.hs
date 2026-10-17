@@ -12,7 +12,7 @@ import Vesbot.BotCommands.Types
 
 import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
 import Vesbot.Predictions.Commands (makePrediction)
-import Vesbot.Currency.Commands (viewCurrencyCommand, payCommand)
+import Vesbot.Currency.Commands (viewCurrencyCommand, payCommand, viewRichestUsersCommand)
 
 import Discord
 import Discord.Internal.Types.ApplicationCommands
@@ -21,26 +21,7 @@ import qualified Discord.Requests as R
 
 import qualified Data.Text as T
 import Data.Time (getCurrentTime)
- 
 
--- | Constructor for a basic slash command with no options.
--- it just replies with some text that is the result of running IO actions.
-basicSlashCommand :: T.Text    -> -- Slash Command Name
-                     T.Text    -> -- Registration Description
-                     IO T.Text -> -- Text diplayed in the interaction response, possibly obtained with IO
-                     BotCommand
-basicSlashCommand name regDesc statefulText
-  = SlashCommand
-    { commandName = name
-    , commandRegistration = createChatInput name regDesc --createChatInput is from Discord.Internal.Types.ApplicationCommands
-    , slashCommandHandler = \intr _ -> do
-        iomessage <- liftIO statefulText
-        void . restCall $
-          R.CreateInteractionResponse
-            (interactionId intr)
-            (interactionToken intr)
-            (interactionResponseBasic iomessage)
-    }
 
 -- | Some are slash commands, some are message commands.
 slashCommands :: Env -> Config -> [BotCommand]
@@ -52,6 +33,7 @@ slashCommands env cfg =
   , makePrediction env
   , viewCurrencyCommand (envDBConnection env) cfg
   , payCommand (envDBConnection env) cfg
+  , viewRichestUsersCommand (envDBConnection env) cfg
   ]
 
 messageCommands :: Env -> [BotCommand]
