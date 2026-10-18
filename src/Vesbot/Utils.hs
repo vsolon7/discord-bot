@@ -13,6 +13,7 @@ module Vesbot.Utils
   , maybeToEither
   , announce
   , sendMessage
+  , reactToMessage
   , ackButtonEditAndRemove
   ) where
 
@@ -68,6 +69,9 @@ announce acid content = do
     case r of
       Left err -> Logging.log Error $ "Error sending an announcement. Discord returned the error:\n" <> showT err
       _ -> Logging.log Info $ "Successfully sent an announcement."
+
+reactToMessage :: Message -> T.Text -> DiscordHandler ()
+reactToMessage msg eid = void . restCall $ R.CreateReaction (messageChannelId msg, messageId msg) eid
 
 sendMessage :: ChannelId -> Maybe MessageId -> T.Text -> DiscordHandler ()
 sendMessage cid replyTo content =

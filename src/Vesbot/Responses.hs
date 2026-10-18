@@ -1,13 +1,16 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Responses
   ( KeywordResponse(..)
   , KeywordResponseData(..)
+  , LuckyEmojiData(..)
+  , LuckyEmoji(..)
   , initKeywordResponses
   , createKeywordResponse
+  , createLuckyEmoji
   ) where
 
-import Vesbot.Utils (void, threadDelay, liftIO)
+import Vesbot.Utils (void, threadDelay, liftIO, sendMessage, reactToMessage)
 import Vesbot.Parsing (parseJSON)
 
 import Discord
@@ -25,41 +28,44 @@ data KeywordResponseData = KeywordResponseData
   , responseKeyword :: T.Text
   , responseEmoji :: T.Text
   , responseOutput :: T.Text
-  } deriving (Generic, Show)
-
-instance AE.FromJSON KeywordResponseData
+  } deriving (Generic, Show, AE.FromJSON)
 
 data KeywordResponse = KeywordResponse
   { responseData :: KeywordResponseData
   , responseHandler :: Message -> DiscordHandler ()
   }
 
+data LuckyEmojiData = LuckyEmojiData
+  { luckyEmojiDataId :: T.Text
+  , luckyEmojiDataChance :: Int
+  } deriving (Generic, Show, AE.FromJSON)
+
+data LuckyEmoji = LuckyEmoji
+  { luckyEmojiHandler :: Message -> DiscordHandler ()
+  , luckyEmojiChance :: Int
+  }
+
 
 createKeywordResponse :: KeywordResponseData -> KeywordResponse
 createKeywordResponse res = KeywordResponse
   { responseData = res
-  , responseHandler = \mess -> do
+  , responseHandler = \msg -> do
       case (responseEmoji res) of
         "" -> return ()
         _  -> do
-          void . restCall $
-            R.CreateReaction
-              (messageChannelId mess, messageId mess)
-              (responseEmoji res)
+          reactToMessage msg (responseEmoji res)
           liftIO . threadDelay $ 100000
       case (responseOutput res) of
         ""      -> return ()
         content -> do
-          let replyMessRef =
-                MessageReference (Just (messageId mess)) (Just (messageChannelId mess)) (messageGuildId mess) False
-              replyMessOpts =
-                R.MessageDetailedOpts content False Nothing Nothing [] Nothing (Just replyMessRef) Nothing Nothing
-          void . restCall $
-            R.CreateMessageDetailed
-              (messageChannelId mess)
-              replyMessOpts
+          sendMessage (messageChannelId msg) (Just $ messageId msg) content
   }
 
+createLuckyEmoji :: LuckyEmojiData -> LuckyEmoji
+createLuckyEmoji ld = LuckyEmoji
+  { luckyEmojiHandler = \msg -> reactToMessage msg (luckyEmojiDataId ld)
+  , luckyEmojiChance = luckyEmojiDataChance ld
+  }
 
 initKeywordResponses :: FilePath -> IO [KeywordResponse]
 initKeywordResponses krFile = do

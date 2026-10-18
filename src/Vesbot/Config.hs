@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, OverloadedStrings, MultiWayIf #-}
 module Vesbot.Config
   ( Env(..)
   , Config(..)
@@ -10,7 +10,7 @@ import Vesbot.Utils (forM_)
 import Vesbot.Parsing (parseJSON)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Actions (Action(..))
-import Vesbot.Responses as Responses (KeywordResponse, initKeywordResponses)
+import Vesbot.Responses as Responses (KeywordResponse, LuckyEmoji, LuckyEmojiData(..), createLuckyEmoji, initKeywordResponses)
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Database as Database (initDBConnection)
 import JSONScheduler.Scheduler.Bell (Bell(..))
@@ -22,7 +22,7 @@ import Data.Time
 import Data.Aeson (ToJSON, FromJSON, eitherDecodeFileStrict, encode)
 import GHC.Generics (Generic)
 import Text.Read (readMaybe)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Control.Concurrent.MVar (newEmptyMVar)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -40,6 +40,7 @@ data Config = Config
   , cfgResponses :: [KeywordResponse]
   , cfgAnnouncementCID :: ChannelId
   , cfgCurrencyInfo :: CurrencyConfig
+  , cfgLuckyEmoji :: LuckyEmoji
   }
 
 data Env = Env
@@ -64,6 +65,8 @@ _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE :: FilePath
 _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE = "appdata/config/announcement_channel_id"
 _CURRENCY_CONFIG_FILE :: FilePath
 _CURRENCY_CONFIG_FILE = "appdata/config/currency_info.json"
+_LUCKY_EMOJI_FILE :: FilePath
+_LUCKY_EMOJI_FILE = "appdata/config/lucky_emoji.json"
 
 
 getToken :: IO T.Text
@@ -89,30 +92,26 @@ initBot = do
   krs <- Responses.initKeywordResponses _RESPONSES_FILE
   conn <- Database.initDBConnection _DATABASE_FILE
 
-  hs <- readJSONActions _INITIAL_ACTIONS_FILE
+  hs <- parseJSON _INITIAL_ACTIONS_FILE :: IO [InitialAction]
   scheduleJSONActions hs s
 
   acid <- readAnnouncementChannelId _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE
 
-  mcc <- parseJSON _CURRENCY_CONFIG_FILE :: IO (Maybe CurrencyConfig)
-  let cc = case mcc of
-        Nothing -> do
-          error "fatal error." :: CurrencyConfig
-        Just x -> x
+  cc <- parseJSON _CURRENCY_CONFIG_FILE :: IO CurrencyConfig
+  led <- parseJSON _LUCKY_EMOJI_FILE :: IO LuckyEmojiData
 
-  return (t, Env conn s, Config gid krs acid cc)
+  let validateLuckyEmoji
+        | luckyEmojiDataChance led > 1 = return ()
+        | luckyEmojiDataChance led < 1 = do
+            Logging.log Warn $ "Lucky emoji chance sent to <1. This will work, but it is not the intended use"
+        | luckyEmojiDataChance led == 1 = do
+            Logging.log Error $ "Lucky emoji chance set to 1. This means every message will recieve this reaction."
 
---TODO: this should really by a use of Vesbot.Parsing.ParseJSON. that function needs to use eitherDecodeFileStrict though
-readJSONActions :: FilePath -> IO [InitialAction]
-readJSONActions file = do
-  mas <- eitherDecodeFileStrict file
-  case mas of
-    Left err -> do
-      Logging.log Error $ "Error parsing initial actions in " <> (T.pack _INITIAL_ACTIONS_FILE) <> ". Error was:\n" <> (T.pack err)
-      return []
-    Right as -> do
-      Logging.log Info $ "Successfully parsed actions in " <> (T.pack _INITIAL_ACTIONS_FILE) <> "."
-      return as
+  validateLuckyEmoji
+  let le = createLuckyEmoji led
+
+  return (t, Env conn s, Config gid krs acid cc le)
+
 
 scheduleJSONActions :: [InitialAction] -> Scheduler Action -> IO ()
 scheduleJSONActions as scheduler =

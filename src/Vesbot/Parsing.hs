@@ -30,17 +30,17 @@ safeHead d [] = d
 safeHead _ (x:xs) = x
 
 
-parseJSON :: AE.FromJSON a => FilePath -> IO (Maybe a)
+parseJSON :: AE.FromJSON a => FilePath -> IO a
 parseJSON path = do
   jsonData <- BS.readFile path
-  let decoded = AE.decodeStrict jsonData
-  case decoded of
-    Nothing -> do
-      Logging.log Error $ "Error parsing the JSON data in " <> T.pack path <> "."
-      return Nothing
-    Just d  -> do
+  let mdecoded = AE.eitherDecodeStrict jsonData
+  case mdecoded of
+    Left err -> do
+      Logging.log Error $ "Error parsing the JSON data in " <> T.pack path <> ". Error was:\n" <> T.pack err
+      error "fatal error"
+    Right d  -> do
       Logging.log Info $ "Successfully parsed the JSON data in " <> T.pack path <> "."
-      return (Just d)
+      return d
 
 
 -- | Kind of a silly function, date input parsing for the predictions is fairly restrictive right now.
