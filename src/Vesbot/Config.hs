@@ -30,7 +30,9 @@ import qualified Data.ByteString.Lazy as BS (putStr)
 
 data CurrencyConfig = CurrencyConfig
   { currencyName :: T.Text
-  , currencySymbol :: T.Text
+  , currencySymbolKilo :: T.Text
+  , currencySymbolNormal :: T.Text
+  , currencySymbolMilli :: T.Text
   } deriving (Show, Generic, ToJSON, FromJSON)
 
 data Config = Config

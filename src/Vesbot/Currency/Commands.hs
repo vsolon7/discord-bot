@@ -21,6 +21,19 @@ import Discord.Internal.Types.Interactions
 
 import qualified Data.Text as T
 import Data.List (intersperse)
+import Numeric (showFFloat)
+
+
+splitDouble :: Double -> (Int, Int, Int)
+splitDouble val = 
+    let (kilo, rest1)   = properFraction (val / 1e3)
+        (normal, rest2) = properFraction (rest1 * 1e3)
+        milli           = round (rest2 * 1e3)
+    in (kilo, normal, milli)
+
+
+showC :: CurrencyConfig -> Double -> T.Text
+showC (CurrencyConfig name sk sn sm) d = let (k, n, m) = splitDouble d in sk <> showT k <> " " <> sn <> showT n <> " " <> sm <> showT m
 
 
 parseViewCurrencyCommand :: Interaction -> Maybe OptionsData -> Either T.Text ViewCurrencyCommandData
@@ -64,7 +77,7 @@ parsePayCommand cmd@(InteractionApplicationCommand {}) opts = do
 
 createPaymentResponse :: DBConnection -> CurrencyConfig -> Either T.Text PayCommandData -> IO InteractionResponse
 createPaymentResponse dbconn ccfg pcd =
-  let cs = currencySymbol ccfg
+  let cn = currencyName ccfg
   in  case pcd of
         Left err -> return (ephemeralResponseBasic err)
         Right p -> do
@@ -72,7 +85,7 @@ createPaymentResponse dbconn ccfg pcd =
           response <- do
             if userCurrency >= payAmount p then
               let response =
-                    "Paid " <> cs <> showT (payAmount p) <> " to <@" <> showT (payToUser p) <> ">."
+                    "Paid " <> (showC ccfg (payAmount p)) <> " to <@" <> showT (payToUser p) <> ">."
                   remove = CurrencyUpdate (payFromUser p) ((-1) * (payAmount p))
                   add = CurrencyUpdate (payToUser p) (payAmount p)
               in do
@@ -80,36 +93,34 @@ createPaymentResponse dbconn ccfg pcd =
                   updateCurrency dbconn add
                   return response
               else do
-                return $ "You don't have enough " <> cs <> "!"
+                return $ "You don't have enough " <> cn <> "!"
           return (ephemeralResponseBasic response)
 
 
 createViewCurrencyResponse :: DBConnection -> CurrencyConfig -> Either T.Text ViewCurrencyCommandData -> IO InteractionResponse
 createViewCurrencyResponse dbconn ccfg vccd =
-  let cs = currencySymbol ccfg
+  let cs = currencyName ccfg
   in  case vccd of
         Left err -> return (ephemeralResponseBasic err)
         Right v -> do
           c <- getCurrency dbconn (viewCurrencyUser v)
           let userPing = "<@" <> showT (viewCurrencyUser v) <> ">"
-              response = userPing <> " has " <> cs <> showT (currencyQueryAmount c) <> "."
+              response = userPing <> " has " <> cs <> showC ccfg (currencyQueryAmount c) <> "."
           return (ephemeralResponseBasic response)
 
 
 createViewRichestUsersResponse :: DBConnection -> CurrencyConfig -> IO InteractionResponse
-createViewRichestUsersResponse dbconn ccfg =
-  let cs = currencySymbol ccfg
-  in do
-    qs <- getRichestUsers dbconn
-    let rs =
-          flip map (zip [1..] qs) $ \(n, q) ->
-            let userPing = "<@" <> showT (currencyQueryUser q) <> ">"
-                r = showT n <> ". " <> userPing <> ": " <> cs <> showT (currencyQueryAmount q) <> "."
-            in r
-        response = T.concat (intersperse "\n" rs :: [T.Text])
-        pingPerms = AllowedMentions False False False [] [] True
-        message = InteractionResponseMessage (Just False) (Just response) Nothing (Just pingPerms) Nothing Nothing Nothing []
-    return (InteractionResponseChannelMessage message)
+createViewRichestUsersResponse dbconn ccfg = do
+  qs <- getRichestUsers dbconn
+  let rs =
+        flip map (zip [1..] qs) $ \(n, q) ->
+          let userPing = "<@" <> showT (currencyQueryUser q) <> ">"
+              r = showT n <> ". " <> userPing <> ": " <> showC ccfg (currencyQueryAmount q) <> "."
+          in r
+      response = T.concat (intersperse "\n" rs :: [T.Text])
+      pingPerms = AllowedMentions False False False [] [] True
+      message = InteractionResponseMessage (Just False) (Just response) Nothing (Just pingPerms) Nothing Nothing Nothing []
+  return (InteractionResponseChannelMessage message)
   
 
 
@@ -130,14 +141,14 @@ payCommand dbconn cfg = SlashCommand
       -- TODO: Database stuff
   }
     where
-      cs = currencySymbol . cfgCurrencyInfo $ cfg
-      o1 = OptionValueUser "pay_to" Nothing ("Who to send the " <> cs <> " to") Nothing True
+      cn = currencyName . cfgCurrencyInfo $ cfg
+      o1 = OptionValueUser "pay_to" Nothing ("Who to send the " <> cn <> " to") Nothing True
       o2 = OptionValueNumber "amount" Nothing "Amount to send" Nothing True (Left False) (Just 0) Nothing
       reg = -- Command registration
         CreateApplicationCommandChatInput
           "pay"
           Nothing
-          ("Send " <> cs <> " to a user")
+          ("Send " <> cn <> " to a user")
           Nothing 
           (Just $ OptionsValues [o1, o2])
           Nothing
@@ -159,13 +170,13 @@ viewCurrencyCommand dbconn cfg = SlashCommand
           botReply
   }
     where
-      cs = currencySymbol . cfgCurrencyInfo $ cfg
+      cn = currencyName . cfgCurrencyInfo $ cfg
       o1 = OptionValueUser "user" Nothing "User to check" Nothing True
       reg = -- Command registration
         CreateApplicationCommandChatInput
           "viewcurrency"
           Nothing
-          ("Check how much " <> cs <> " someone has")
+          ("Check how many " <> cn <> " someone has")
           Nothing
           (Just $ OptionsValues [ o1 ])
           Nothing
@@ -174,10 +185,10 @@ viewCurrencyCommand dbconn cfg = SlashCommand
 
 viewRichestUsersCommand :: DBConnection -> Config -> BotCommand
 viewRichestUsersCommand dbconn cfg =
-  let cs = currencySymbol . cfgCurrencyInfo $ cfg
+  let cn = currencyName . cfgCurrencyInfo $ cfg
   in  SlashCommand
         { commandName = "rich"
-        , commandRegistration = createChatInput "rich" ("View the users with the most " <> cs)
+        , commandRegistration = createChatInput "rich" ("View the users with the most " <> cn)
         , slashCommandHandler = \intr _ -> do
             botReply <- liftIO $ createViewRichestUsersResponse dbconn (cfgCurrencyInfo cfg)
             void . restCall $

@@ -1,4 +1,6 @@
 {
   "currencyName": "lambda",
-  "currencySymbol": "λ"
+  "currencySymbolKilo": "κ",
+  "currencySymbolNormal": "λ",
+  "currencySymbolMilli": "μ"
 }
