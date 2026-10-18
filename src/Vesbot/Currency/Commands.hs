@@ -25,15 +25,16 @@ import Numeric (showFFloat)
 
 
 splitDouble :: Double -> (Int, Int, Int)
-splitDouble val = 
-    let (kilo, rest1)   = properFraction (val / 1e3)
-        (normal, rest2) = properFraction (rest1 * 1e3)
-        milli           = round (rest2 * 1e3)
+splitDouble d =
+    let millis = round $ d * (10^3) :: Int
+        (kilo, rest1)   = divMod millis (10^6)
+        (normal, milli) = divMod rest1 (10^3)
     in (kilo, normal, milli)
 
-
 showC :: CurrencyConfig -> Double -> T.Text
-showC (CurrencyConfig name sk sn sm) d = let (k, n, m) = splitDouble d in sk <> showT k <> " " <> sn <> showT n <> " " <> sm <> showT m
+showC (CurrencyConfig name sk sn sm) d =
+  let (k, n, m) = splitDouble d
+  in sk <> showT k <> " " <> sn <> showT n <> " " <> sm <> showT m
 
 
 parseViewCurrencyCommand :: Interaction -> Maybe OptionsData -> Either T.Text ViewCurrencyCommandData
@@ -105,7 +106,7 @@ createViewCurrencyResponse dbconn ccfg vccd =
         Right v -> do
           c <- getCurrency dbconn (viewCurrencyUser v)
           let userPing = "<@" <> showT (viewCurrencyUser v) <> ">"
-              response = userPing <> " has " <> cs <> showC ccfg (currencyQueryAmount c) <> "."
+              response = userPing <> " has " <> showC ccfg (currencyQueryAmount c) <> "."
           return (ephemeralResponseBasic response)
 
 
@@ -143,7 +144,7 @@ payCommand dbconn cfg = SlashCommand
     where
       cn = currencyName . cfgCurrencyInfo $ cfg
       o1 = OptionValueUser "pay_to" Nothing ("Who to send the " <> cn <> " to") Nothing True
-      o2 = OptionValueNumber "amount" Nothing "Amount to send" Nothing True (Left False) (Just 0) Nothing
+      o2 = OptionValueNumber "amount" Nothing "Amount to send" Nothing True (Left False) (Just 0.001) Nothing
       reg = -- Command registration
         CreateApplicationCommandChatInput
           "pay"
