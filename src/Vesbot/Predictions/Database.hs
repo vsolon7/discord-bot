@@ -80,7 +80,7 @@ markAsNotified dbconn pid = withDB dbconn $
 markResult :: DBConnection -> Int64 -> Bool -> IO ()
 markResult dbconn pid res = withDB dbconn $
   \conn -> do
-    let intres = if res == True then 1 else 0
+    let intres = if res == True then 1 else 0 :: Int64
     SQL.execute conn
       "UPDATE predictions \
       \SET came_true = ? \
