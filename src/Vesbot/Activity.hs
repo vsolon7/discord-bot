@@ -2,11 +2,12 @@
 module Vesbot.Activity
   ( modifyReactionActivity
   , updateMessageActivity
+  , addEmojiUse
   ) where
 
 import Vesbot.Utils (showT, liftIO)
 import Vesbot.Logging as Logging (log, LogType(..))
-import Vesbot.Activity.Database (DBConnection, incrementMessageActivity, modifyReactionActivity)
+import Vesbot.Activity.Database (DBConnection, incrementMessageActivity, modifyReactionActivity, addEmojiUse)
 
 import Data.Time (UTCTime)
 

@@ -6,6 +6,7 @@ module Vesbot.Activity.Database
   , initEmojiUseTable
   , modifyReactionActivity
   , incrementMessageActivity
+  , addEmojiUse
   ) where
 
 import Vesbot.Utils (showT)
@@ -31,13 +32,13 @@ initUserActivityTable dbconn = withDB dbconn $ \conn ->
 initEmojiUseTable :: DBConnection -> IO ()
 initEmojiUseTable dbconn = withDB dbconn $ \conn -> do
   SQL.execute_ conn
-    "CREATE TABLE IF NOT EXIST emoji_use_data(\
+    "CREATE TABLE IF NOT EXISTS emoji_use_data(\
     \  emoji_id         TEXT NOT NULL,\
-    \  use_time         INTEGER NOT NULL) WITHOUT ROWID STRICT"
+    \  use_time         INTEGER NOT NULL) STRICT"
 
   SQL.execute_ conn
-    "CREATE INDEX IF NOT EXISTS idx_use_time \
-    \ON emoji_use_data (use_time);"
+    "CREATE INDEX IF NOT EXISTS idx_emoji_id \
+    \ON emoji_use_data (emoji_id);"
 
 
 clearAllUserActivityData :: DBConnection -> IO ()

@@ -29,7 +29,8 @@ initTable dbconn = withDB dbconn $ \conn ->
     \  confidence     REAL,\
     \  created_at     INTEGER NOT NULL,\
     \  due_at         INTEGER NOT NULL,\
-    \  notified       INTEGER NOT NULL DEFAULT 0) STRICT"
+    \  notified       INTEGER NOT NULL DEFAULT 0,\
+    \  came_true      INTEGER) STRICT"
 
 savePrediction :: DBConnection -> PredictionData -> IO Int64
 savePrediction dbconn p = withDB dbconn $
