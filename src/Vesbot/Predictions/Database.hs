@@ -6,6 +6,7 @@ module Vesbot.Predictions.Database
   , nextPredictionTime
   , getPredictionById
   , markAsNotified
+  , markResult
   ) where
 
 import Vesbot.Predictions.Types
@@ -75,3 +76,13 @@ markAsNotified dbconn pid = withDB dbconn $
       \SET notified = 1 \
       \WHERE id = ?"
       [pid]
+
+markResult :: DBConnection -> Int64 -> Bool -> IO ()
+markResult dbconn pid res = withDB dbconn $
+  \conn -> do
+    let intres = if res == True then 1 else 0
+    SQL.execute conn
+      "UPDATE predictions \
+      \SET came_true = ? \
+      \WHERE id = ?"
+      (intres, pid)

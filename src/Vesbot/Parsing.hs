@@ -107,3 +107,4 @@ getUserData (
     )
   ) = Just uid
 
+getUserData _ = Nothing

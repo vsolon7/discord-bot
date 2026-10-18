@@ -2,9 +2,10 @@
 module Vesbot.Predictions where
 
 import Vesbot.Logging as Logging (log, LogType(..))
-import Vesbot.Utils (sendMessage, liftIO, showT)
+import Vesbot.Utils (sendMessage, liftIO, showT, ackButtonEditAndRemove, ephemeralResponseBasic, void)
 import Vesbot.Parsing (utcToInt)
 import Vesbot.Config (Env(..))
+import Vesbot.Database (DBConnection(..))
 import Vesbot.Predictions.Types (PredictionData(..))
 import Vesbot.Predictions.Database
 import Data.Int (Int64)
@@ -49,3 +50,21 @@ announceDuePrediction env pid cid mid = do
           _ -> Logging.log Info $ "Successfully announced the prediction to channel " <> showT cid <> "."
 
   liftIO $ markAsNotified (envDBConnection env) pid
+
+
+predictionButtonResponse :: DBConnection -> InteractionId -> InteractionToken -> PredictionId -> UserId -> Message -> T.Text -> DiscordHandler ()
+predictionButtonResponse dbconn iid itok pid uid msg torf = do
+  mpd <- liftIO $ getPredictionById dbconn pid
+  case mpd of
+    Nothing -> return ()
+    Just pd -> do
+      if predictionUserId pd /= uid
+        then do
+          let reply = ephemeralResponseBasic "Only the original predictor can declare the validity of their prediction."
+          void . restCall $ R.CreateInteractionResponse iid itok reply
+        else do
+          let result = if torf == "T" then "correct" else "incorrect"
+              reply = "**Marked this prediction as having been " <> result <> ".**"
+          ackButtonEditAndRemove iid itok msg reply
+          liftIO $ markResult dbconn pid (if torf == "T" then True else False)
+
