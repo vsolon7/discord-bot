@@ -1,15 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Responses
-  ( KeywordResponse
-  , KeywordResponseData
+  ( KeywordResponse(..)
+  , KeywordResponseData(..)
   , initKeywordResponses
-  , responseName
-  , responseKeyword
-  , responseEmoji
-  , responseOutput
-  , responseData
-  , responseHandler
+  , createKeywordResponse
   ) where
 
 import Vesbot.Utils (void, threadDelay, liftIO)
