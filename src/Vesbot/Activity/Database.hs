@@ -63,7 +63,7 @@ modifyReactionActivity dbconn reacter reactee = withDB dbconn $
       SQL.executeNamed conn
         "INSERT INTO user_activity (user_id, num_reactees) VALUES (:reacter, 1)\
         \ON CONFLICT(user_id)\
-        \DO UPDATE SET num_reactions = num_reactions + 1;"
+        \DO UPDATE SET num_reactees = num_reactees + 1;"
         [ ":reacter" SQL.:= (showT reacter) ]
 
 
