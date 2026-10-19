@@ -2,11 +2,12 @@
 module Vesbot.Handler.Reactions where
 
 import Vesbot.Utils (liftIO, showT, fromBot)
+import Vesbot.Parsing (emojiToText)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Activity (modifyReactionActivity, addEmojiUse)
-import Vesbot.Currency (updateCurrency, CurrencyUpdate(..))
+import Vesbot.Currency (updateCurrency, updateEmojis, CurrencyUpdate(..), EmojiUpdate(..))
 
 import Discord
 import Discord.Types
@@ -15,32 +16,61 @@ import qualified Discord.Requests as R
 import Control.Monad (unless)
 import Data.Time (getCurrentTime)
 
-reactionHandler :: Config -> Env -> ReactionInfo -> DiscordHandler ()
-reactionHandler cfg env (ReactionInfo rUid mGid cid oMid emoji) = do
+reactionAddHandler :: Config -> Env -> ReactionInfo -> DiscordHandler ()
+reactionAddHandler cfg env info@(ReactionInfo _ _ _ _ emoji) = do
   now <- liftIO getCurrentTime
-  ruOrErr <- restCall $ R.GetUser rUid -- the user that reacted (or an error)
+  mUsers <- extractReactionInfo info
+  case mUsers of
+    Nothing -> return ()
+    Just (reacter, reactee) ->
+      -- self reactions don't count and we don't care to track how many reactions bots get.
+      unless (userId reacter == userId reactee || userIsBot reactee) $
+      liftIO $ do
+        let reacteeId = userId reactee
+            reacterId = userId reacter
+            emojiName = emojiToText emoji
+        updateEmojis (envDBConnection env) (EmojiUpdate reacteeId [(emojiName, 1)])
+        unless (userIsBot reacter) $ do -- bots reacting to you doesn't affect emoji use history
+          updateCurrency (envDBConnection env) (CurrencyUpdate reacteeId 0.1)
+          modifyReactionActivity (envDBConnection env) reacterId reacteeId
+          addEmojiUse (envDBConnection env) emojiName now
+
+reactionRemoveHandler :: Config -> Env -> ReactionInfo -> DiscordHandler ()
+reactionRemoveHandler cfg env info@(ReactionInfo _ _ _ _ emoji) = do
+  mUsers <- extractReactionInfo info
+  case mUsers of
+    Nothing -> return ()
+    Just (unreacter, unreactee) ->
+      unless (userId unreacter == userId unreactee || userIsBot unreactee) $
+      liftIO $ do
+        let unreacteeId = userId unreactee
+            emojiName = emojiToText emoji
+        updateEmojis (envDBConnection env) (EmojiUpdate unreacteeId [(emojiName, -1)])
+
+extractReactionInfo :: ReactionInfo -> DiscordHandler (Maybe (User, User))
+extractReactionInfo (ReactionInfo rUid mGid cid oMid _) = do
+  rUsrOrErr <- restCall $ R.GetUser rUid -- the user that reacted (or an error)
   oMsgOrErr <- restCall $ R.GetChannelMessage (cid, oMid) -- the original message that was reacted to (or an error)
-  case ruOrErr of
-    Left err -> Logging.log Error $
-      "Failed to get the reacting user when trying update a user's emoji reaction score. \
-      \Discord returned the error:\n" <> showT err
+  case rUsrOrErr of
+    Left err -> do
+      Logging.log Error $
+        "Failed to get the reacting user when trying update reaction related info. \
+        \Discord returned the error:\n" <> showT err
+      return Nothing
     Right rUsr ->
-      unless (userIsBot rUsr) $ case mGid of -- we don't care if a bot reacts to a message 
-        Nothing -> Logging.log Warn "Tried to update reaction activity for a reaction that did not happen in a guild. The bot\
-          \is not designed for this use case. Ignoring the reaction..."-- if the reaction didn't happen in a guild, we don't care
+      case mGid of
+        Nothing -> do
+          Logging.log Warn $
+            "Tried to update reaction activity for a reaction that did not happen in a guild. The bot\
+            \is not designed for this use case. Ignoring the reaction..."-- if the reaction didn't happen in a guild, we don't care
+          return Nothing
         Just gid -> case oMsgOrErr of
-          Left err ->
+          Left err -> do
             Logging.log Error $
               "Failed to get the original message when trying to update a user's emoji reaction score. \
               \Discord returned the error:\n" <> showT err
+            return Nothing
           Right oMsg -> do -- the message the user reacted to.
             let op = messageAuthor oMsg
-                opid = userId op
-            -- self reactions don't count and we don't care to track how many reactions bots get.
-            unless (userId op == rUid || userIsBot op) $
-              liftIO $ do
-                modifyReactionActivity (envDBConnection env) rUid opid
-                updateCurrency (envDBConnection env) (CurrencyUpdate opid 0.1)
-                addEmojiUse (envDBConnection env) (emojiName emoji) now
-  
+            return $ Just (rUsr, op)
 

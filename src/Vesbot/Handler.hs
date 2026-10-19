@@ -7,7 +7,7 @@ import Vesbot.Config as Config (Env(..), Config(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Handler.Interactions (interactionHandler)
 import Vesbot.Handler.Messages (messageHandler)
-import Vesbot.Handler.Reactions (reactionHandler)
+import Vesbot.Handler.Reactions (reactionAddHandler, reactionRemoveHandler)
 import Vesbot.BotCommands as BC
 
 import Discord
@@ -25,10 +25,11 @@ eventHandler cfg env =
   \event ->
     case event of
       Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady env cfg appid (cfgGuildId cfg)
-      InteractionCreate intr  -> interactionHandler cfg env intr
-      MessageCreate mess      -> messageHandler cfg env mess
-      MessageReactionAdd info -> reactionHandler cfg env info
-      _                       -> return ()
+      InteractionCreate intr     -> interactionHandler cfg env intr
+      MessageCreate mess         -> messageHandler cfg env mess
+      MessageReactionAdd info    -> reactionAddHandler cfg env info
+      MessageReactionRemove info -> reactionRemoveHandler cfg env info
+      _                          -> return ()
 
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.

@@ -12,7 +12,7 @@ import Vesbot.BotCommands.Types
 
 import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
 import Vesbot.Predictions.Commands (makePrediction)
-import Vesbot.Currency.Commands (viewCurrencyCommand, payCommand, viewRichestUsersCommand)
+import Vesbot.Currency.Commands (viewCurrencyCommand, payCommand, viewRichestUsersCommand, viewEmojisCommand)
 
 import Discord
 import Discord.Internal.Types.ApplicationCommands
@@ -34,6 +34,7 @@ slashCommands env cfg =
   , viewCurrencyCommand (envDBConnection env) cfg
   , payCommand (envDBConnection env) cfg
   , viewRichestUsersCommand (envDBConnection env) cfg
+  , viewEmojisCommand (envDBConnection env)
   ]
 
 messageCommands :: Env -> [BotCommand]

@@ -108,3 +108,11 @@ getUserData (
   ) = Just uid
 
 getUserData _ = Nothing
+
+
+-- turn an emoji into its text based name
+emojiToText :: Emoji -> T.Text
+emojiToText (Emoji mid name _ _ _ _) =
+  case mid of
+    Nothing -> name
+    Just id -> "<:" <> name <> ":" <> T.show id <> ">"

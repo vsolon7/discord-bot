@@ -3,14 +3,15 @@ module Vesbot.Currency.Commands
   ( payCommand
   , viewCurrencyCommand
   , viewRichestUsersCommand
+  , viewEmojisCommand
   ) where
 
 import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, liftIO, void, forM)
 import Vesbot.Parsing (getUserData, extractUserOption, extractNumberOption)
 import Vesbot.Config (Config(..), CurrencyConfig(..))
 import Vesbot.Database.Types (DBConnection)
-import Vesbot.Currency.Types (ViewCurrencyCommandData(..), PayCommandData(..), CurrencyQuery(..), CurrencyUpdate(..))
-import Vesbot.Currency.Database (getCurrency, updateCurrency, getRichestUsers)
+import Vesbot.Currency.Types (ViewCurrencyCommandData(..), PayCommandData(..), CurrencyQuery(..), EmojiQuery(..), CurrencyUpdate(..))
+import Vesbot.Currency.Database (getCurrency, getEmojis, updateCurrency, getRichestUsers)
 import Vesbot.BotCommands.Types (BotCommand(..))
 
 import Discord
@@ -37,18 +38,17 @@ showC (CurrencyConfig name sk sn sm) d =
   in sk <> showT k <> " " <> sn <> showT n <> " " <> sm <> showT m
 
 
-parseViewCurrencyCommand :: Interaction -> Maybe OptionsData -> Either T.Text ViewCurrencyCommandData
-parseViewCurrencyCommand cmd@(InteractionApplicationCommand {}) opts = do
+parseUserFieldCommand :: Interaction -> Maybe OptionsData -> Either T.Text UserId
+parseUserFieldCommand cmd@(InteractionApplicationCommand {}) opts = do
   dataValues <-
     maybeToEither
       "Could not access the view currency command's option fields."
       opts
-  user <-
+  uid <-
     maybeToEither
       "Could not access user field in the view currency command."
       (extractUserOption "user" dataValues)
-  return $
-    ViewCurrencyCommandData user
+  return uid
 
 
 parsePayCommand :: Interaction -> Maybe OptionsData -> Either T.Text PayCommandData
@@ -98,16 +98,27 @@ createPaymentResponse dbconn ccfg pcd =
           return (ephemeralResponseBasic response)
 
 
-createViewCurrencyResponse :: DBConnection -> CurrencyConfig -> Either T.Text ViewCurrencyCommandData -> IO InteractionResponse
-createViewCurrencyResponse dbconn ccfg vccd =
+createViewCurrencyResponse :: DBConnection -> CurrencyConfig -> Either T.Text UserId -> IO InteractionResponse
+createViewCurrencyResponse dbconn ccfg userOrErr =
   let cs = currencyName ccfg
-  in  case vccd of
+  in  case userOrErr of
         Left err -> return (ephemeralResponseBasic err)
-        Right v -> do
-          c <- getCurrency dbconn (viewCurrencyUser v)
-          let userPing = "<@" <> showT (viewCurrencyUser v) <> ">"
+        Right uid -> do
+          c <- getCurrency dbconn uid
+          let userPing = "<@" <> showT uid <> ">"
               response = userPing <> " has " <> showC ccfg (currencyQueryAmount c) <> "."
           return (ephemeralResponseBasic response)
+
+
+createViewEmojisResponse :: DBConnection -> Either T.Text UserId -> IO InteractionResponse
+createViewEmojisResponse dbconn userOrErr = do
+  case userOrErr of
+    Left err -> return (ephemeralResponseBasic err)
+    Right uid -> do
+      res <- getEmojis dbconn uid
+      let as = emojiQueryAmounts res
+          response = T.intercalate "  |  " [ name <> ": " <> showT amt | (name, amt) <- as, amt /= 0 ]
+      return (ephemeralResponseBasic response)
 
 
 createViewRichestUsersResponse :: DBConnection -> CurrencyConfig -> IO InteractionResponse
@@ -118,7 +129,7 @@ createViewRichestUsersResponse dbconn ccfg = do
           let userPing = "<@" <> showT (currencyQueryUser q) <> ">"
               r = showT n <> ". " <> userPing <> ": " <> showC ccfg (currencyQueryAmount q) <> "."
           in r
-      response = T.concat (intersperse "\n" rs :: [T.Text])
+      response = T.intercalate "\n" rs :: T.Text
       pingPerms = AllowedMentions False False False [] [] True
       message = InteractionResponseMessage (Just False) (Just response) Nothing (Just pingPerms) Nothing Nothing Nothing []
   return (InteractionResponseChannelMessage message)
@@ -161,8 +172,8 @@ viewCurrencyCommand dbconn cfg = SlashCommand
   { commandName = "viewcurrency"
   , commandRegistration = Just reg
   , slashCommandHandler = \intr opts -> do
-      let vccd = parseViewCurrencyCommand intr opts :: Either T.Text ViewCurrencyCommandData
-      botReply <- liftIO $ createViewCurrencyResponse dbconn (cfgCurrencyInfo cfg) vccd
+      let uid = parseUserFieldCommand intr opts
+      botReply <- liftIO $ createViewCurrencyResponse dbconn (cfgCurrencyInfo cfg) uid
       -- Respond with the error or the correct reply
       void . restCall $
         R.CreateInteractionResponse
@@ -198,3 +209,29 @@ viewRichestUsersCommand dbconn cfg =
                 (interactionToken intr)
                 botReply
         }
+
+
+viewEmojisCommand :: DBConnection -> BotCommand
+viewEmojisCommand dbconn = SlashCommand
+  { commandName = "viewemojis"
+  , commandRegistration = Just reg
+  , slashCommandHandler = \intr opts -> do
+      let uid = parseUserFieldCommand intr opts
+      botReply <- liftIO $ createViewEmojisResponse dbconn uid
+      void . restCall $
+        R.CreateInteractionResponse
+          (interactionId intr)
+          (interactionToken intr)
+          botReply 
+  }
+    where
+      o1 = OptionValueUser "user" Nothing "User to check" Nothing True
+      reg = -- Command registration
+        CreateApplicationCommandChatInput
+          "viewemojis"
+          Nothing
+          ("Check how many emojis someone has")
+          Nothing
+          (Just $ OptionsValues [ o1 ])
+          Nothing
+          (Just False)
