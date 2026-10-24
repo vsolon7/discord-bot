@@ -71,8 +71,11 @@ _CURRENCY_CONFIG_FILE :: FilePath
 _CURRENCY_CONFIG_FILE = "appdata/config/currency_info.json"
 _RARE_EMOJI_FILE :: FilePath
 _RARE_EMOJI_FILE = "appdata/config/rare_emojis.json"
-_DROP_TABLE_FILE :: FilePath
-_DROP_TABLE_FILE = "appdata/config/emoji_drop_table_rates.json"
+_DROP_TABLE_RATES :: Int -> Int
+_DROP_TABLE_RATES n
+  | n == 1 = 650
+  | n > 1 = 2
+  | otherwise = 0
 
 
 getToken :: IO T.Text
@@ -116,7 +119,7 @@ initBot = do
   traverse_ validateRareEmoji reds
   let res = map createRareEmoji reds
 
-  let rates = DropTableRates (\n -> 800)
+  let rates = DropTableRates _DROP_TABLE_RATES
 
   return (t, Env conn s, Config gid krs acid cc res rates)
 
