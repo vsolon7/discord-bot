@@ -65,7 +65,7 @@ rareEmojiRoll cfg msg = do
 
 -- | TODO: unfinished
 computeNumReacts :: DropTableRates -> IO Int
-computeNumReacts (DropTableRates rates) = go rates 0
+computeNumReacts (DropTableRates rates) = go rates 1
   where
     go rates n = do
       let chance = rates n
