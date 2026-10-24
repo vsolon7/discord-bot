@@ -3,6 +3,7 @@ module Vesbot.Config
   ( Env(..)
   , Config(..)
   , CurrencyConfig(..)
+  , DropTableRates(..)
   , initBot
   ) where
 
@@ -35,12 +36,15 @@ data CurrencyConfig = CurrencyConfig
   , currencySymbolMilli :: T.Text
   } deriving (Show, Generic, ToJSON, FromJSON)
 
+newtype DropTableRates = DropTableRates (Int -> Int) -- generator function for the chance for 1 drop, 2 drops, 3 drops, etc.
+
 data Config = Config
   { cfgGuildId :: GuildId
   , cfgResponses :: [KeywordResponse]
   , cfgAnnouncementCID :: ChannelId
   , cfgCurrencyInfo :: CurrencyConfig
   , cfgRareEmoji :: [RareEmoji]
+  , cfgDropTableRates :: DropTableRates
   }
 
 data Env = Env
@@ -67,6 +71,8 @@ _CURRENCY_CONFIG_FILE :: FilePath
 _CURRENCY_CONFIG_FILE = "appdata/config/currency_info.json"
 _RARE_EMOJI_FILE :: FilePath
 _RARE_EMOJI_FILE = "appdata/config/rare_emojis.json"
+_DROP_TABLE_FILE :: FilePath
+_DROP_TABLE_FILE = "appdata/config/emoji_drop_table_rates.json"
 
 
 getToken :: IO T.Text
@@ -101,18 +107,18 @@ initBot = do
   reds <- parseJSON _RARE_EMOJI_FILE :: IO [RareEmojiData]
 
   let validateRareEmoji red
-        | rareEmojiDataChance red > 1 = return ()
         | rareEmojiDataChance red < 0 = do
-            Logging.log Warn $ "Lucky emoji chance sent to <0. This will work, but it is not the intended use"
+            Logging.log Error $ "Lucky emoji chance sent to <0."
         | rareEmojiDataChance red == 0 = do
-            Logging.log Warn $ "Lucky emoji chance set to 0. This means that no messages will receive this reaction."
-        | rareEmojiDataChance red == 1 = do
-            Logging.log Error $ "Lucky emoji chance set to 1. This means every message will recieve this reaction."
+            Logging.log Warn $ "Lucky emoji chance set to 0. This means that this reaction is removed from the drop table."
+        | otherwise = return ()
 
   traverse_ validateRareEmoji reds
   let res = map createRareEmoji reds
 
-  return (t, Env conn s, Config gid krs acid cc res)
+  let rates = DropTableRates (\n -> 800)
+
+  return (t, Env conn s, Config gid krs acid cc res rates)
 
 
 scheduleJSONActions :: [InitialAction] -> Scheduler Action -> IO ()

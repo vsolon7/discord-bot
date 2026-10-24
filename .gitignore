@@ -4,4 +4,6 @@ dist-newstyle/packagedb/
 dist-newstyle/tmp/
 appdata/database/data.db
 appdata/scheduler/
+appdata/config/announcement_channel_id
+appdata/config/rare_emojis.json
 log.out
