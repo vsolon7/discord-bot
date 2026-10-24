@@ -3,11 +3,11 @@
 module Vesbot.Responses
   ( KeywordResponse(..)
   , KeywordResponseData(..)
-  , LuckyEmojiData(..)
-  , LuckyEmoji(..)
+  , RareEmojiData(..)
+  , RareEmoji(..)
   , initKeywordResponses
   , createKeywordResponse
-  , createLuckyEmoji
+  , createRareEmoji
   ) where
 
 import Vesbot.Utils (void, threadDelay, liftIO, sendMessage, reactToMessage)
@@ -35,14 +35,14 @@ data KeywordResponse = KeywordResponse
   , responseHandler :: Message -> DiscordHandler ()
   }
 
-data LuckyEmojiData = LuckyEmojiData
-  { luckyEmojiDataId :: T.Text
-  , luckyEmojiDataChance :: Int
+data RareEmojiData = LuckyEmojiData
+  { rareEmojiDataId :: T.Text
+  , rareEmojiDataChance :: Int
   } deriving (Generic, Show, AE.FromJSON)
 
-data LuckyEmoji = LuckyEmoji
-  { luckyEmojiHandler :: Message -> DiscordHandler ()
-  , luckyEmojiChance :: Int
+data RareEmoji = LuckyEmoji
+  { rareEmojiHandler :: Message -> DiscordHandler ()
+  , rareEmojiChance :: Int
   }
 
 
@@ -61,10 +61,10 @@ createKeywordResponse res = KeywordResponse
           sendMessage (messageChannelId msg) (Just $ messageId msg) content
   }
 
-createLuckyEmoji :: LuckyEmojiData -> LuckyEmoji
-createLuckyEmoji ld = LuckyEmoji
-  { luckyEmojiHandler = \msg -> reactToMessage msg (luckyEmojiDataId ld)
-  , luckyEmojiChance = luckyEmojiDataChance ld
+createRareEmoji :: RareEmojiData -> RareEmoji
+createRareEmoji ld = LuckyEmoji
+  { rareEmojiHandler = \msg -> reactToMessage msg (rareEmojiDataId ld)
+  , rareEmojiChance = rareEmojiDataChance ld
   }
 
 initKeywordResponses :: FilePath -> IO [KeywordResponse]

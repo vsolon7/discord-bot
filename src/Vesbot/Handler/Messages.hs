@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Handler.Messages where
 
-import Vesbot.Utils (liftIO, fromBot, sendMessage)
+import Vesbot.Utils (liftIO, fromBot, sendMessage, traverse_)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Activity (updateMessageActivity)
-import Vesbot.Responses (KeywordResponseData(..), KeywordResponse(..), LuckyEmoji(..), createKeywordResponse)
+import Vesbot.Responses (KeywordResponseData(..), KeywordResponse(..), RareEmoji(..), createKeywordResponse)
 
 import Discord
 import Discord.Types
@@ -17,18 +17,15 @@ import Data.Time (getCurrentTime)
 import System.Random
 
 
-luckyEmojiReact = createKeywordResponse (KeywordResponseData "lucky" "" "sunturtle:1555089683107676240" "")
-
 messageHandler :: Config -> Env -> Message -> DiscordHandler ()
 messageHandler cfg env =
   \msg ->
     if fromBot msg
       then return ()
     else do
-      -- | Lucky emoji dice roll
-      let le = cfgLuckyEmoji cfg
-      r <- liftIO $ randomRIO (1, luckyEmojiChance le) :: DiscordHandler Int
-      if r == 1 then luckyEmojiHandler le msg else return ()
+      -- | Lucky emoji dice rolls
+      let res = cfgRareEmoji cfg
+      traverse_ (rareEmojiRoll msg) res
 
       -- | Check if the message contains one of the response keywords as a substring.
       -- Note that we only check for the *first* such substring match.
@@ -49,3 +46,10 @@ messageHandler cfg env =
   where
     contains :: Message -> T.Text -> Bool
     contains msg t = t `T.isInfixOf` (T.toLower . messageContent $ msg)
+
+
+rareEmojiRoll :: Message -> RareEmoji -> DiscordHandler ()
+rareEmojiRoll msg re = do
+  let jackpot = rareEmojiChance re
+  r <- liftIO . randomRIO $ (1, rareEmojiChance re) :: DiscordHandler Int
+  if r == jackpot then rareEmojiHandler re msg else return ()

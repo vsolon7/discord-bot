@@ -6,11 +6,11 @@ module Vesbot.Config
   , initBot
   ) where
 
-import Vesbot.Utils (forM_)
+import Vesbot.Utils (forM_, traverse_)
 import Vesbot.Parsing (parseJSON)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Actions (Action(..))
-import Vesbot.Responses as Responses (KeywordResponse, LuckyEmoji, LuckyEmojiData(..), createLuckyEmoji, initKeywordResponses)
+import Vesbot.Responses as Responses (KeywordResponse, RareEmoji, RareEmojiData(..), createRareEmoji, initKeywordResponses)
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Database as Database (initDBConnection)
 import JSONScheduler.Scheduler.Bell (Bell(..))
@@ -40,7 +40,7 @@ data Config = Config
   , cfgResponses :: [KeywordResponse]
   , cfgAnnouncementCID :: ChannelId
   , cfgCurrencyInfo :: CurrencyConfig
-  , cfgLuckyEmoji :: LuckyEmoji
+  , cfgRareEmoji :: [RareEmoji]
   }
 
 data Env = Env
@@ -65,8 +65,8 @@ _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE :: FilePath
 _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE = "appdata/config/announcement_channel_id"
 _CURRENCY_CONFIG_FILE :: FilePath
 _CURRENCY_CONFIG_FILE = "appdata/config/currency_info.json"
-_LUCKY_EMOJI_FILE :: FilePath
-_LUCKY_EMOJI_FILE = "appdata/config/lucky_emoji.json"
+_RARE_EMOJI_FILE :: FilePath
+_RARE_EMOJI_FILE = "appdata/config/rare_emojis.json"
 
 
 getToken :: IO T.Text
@@ -98,19 +98,21 @@ initBot = do
   acid <- readAnnouncementChannelId _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE
 
   cc <- parseJSON _CURRENCY_CONFIG_FILE :: IO CurrencyConfig
-  led <- parseJSON _LUCKY_EMOJI_FILE :: IO LuckyEmojiData
+  reds <- parseJSON _RARE_EMOJI_FILE :: IO [RareEmojiData]
 
-  let validateLuckyEmoji
-        | luckyEmojiDataChance led > 1 = return ()
-        | luckyEmojiDataChance led < 1 = do
-            Logging.log Warn $ "Lucky emoji chance sent to <1. This will work, but it is not the intended use"
-        | luckyEmojiDataChance led == 1 = do
+  let validateRareEmoji red
+        | rareEmojiDataChance red > 1 = return ()
+        | rareEmojiDataChance red < 0 = do
+            Logging.log Warn $ "Lucky emoji chance sent to <0. This will work, but it is not the intended use"
+        | rareEmojiDataChance red == 0 = do
+            Logging.log Warn $ "Lucky emoji chance set to 0. This means that no messages will receive this reaction."
+        | rareEmojiDataChance red == 1 = do
             Logging.log Error $ "Lucky emoji chance set to 1. This means every message will recieve this reaction."
 
-  validateLuckyEmoji
-  let le = createLuckyEmoji led
+  traverse_ validateRareEmoji reds
+  let res = map createRareEmoji reds
 
-  return (t, Env conn s, Config gid krs acid cc le)
+  return (t, Env conn s, Config gid krs acid cc res)
 
 
 scheduleJSONActions :: [InitialAction] -> Scheduler Action -> IO ()

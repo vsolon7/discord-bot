@@ -9,6 +9,7 @@ module Vesbot.Utils
   , fromBot
   , showT
   , find
+  , traverse_
   , ephemeralResponseBasic
   , maybeToEither
   , announce
@@ -30,6 +31,7 @@ import Control.Monad.IO.Class (liftIO)
 import UnliftIO.Concurrent (forkIO, threadDelay)
 import Control.Monad (void, forM, forM_)
 import Data.List (find)
+import Data.Foldable (traverse_)
 
 import qualified Data.Aeson as A
 import qualified Data.ByteString as BS
