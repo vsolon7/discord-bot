@@ -73,8 +73,8 @@ _RARE_EMOJI_FILE :: FilePath
 _RARE_EMOJI_FILE = "appdata/config/rare_emojis.json"
 _DROP_TABLE_RATES :: Int -> Int
 _DROP_TABLE_RATES n
-  | n == 1 = 650
-  | n > 1 = 2
+  | n == 0 = 650
+  | n > 0 = 2
   | otherwise = 0
 
 

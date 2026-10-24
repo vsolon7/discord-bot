@@ -12,7 +12,7 @@ import Discord
 import Discord.Types
 
 import qualified Data.Text as T
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Data.List (find)
 import Data.Time (getCurrentTime)
 import System.Random
@@ -63,16 +63,17 @@ rareEmojiRoll cfg msg = do
         message = "HOLY. CHECK IT: " <> link
     announce (cfgAnnouncementCID cfg) message
 
--- | TODO: unfinished
 computeNumReacts :: DropTableRates -> IO Int
-computeNumReacts (DropTableRates rates) = go rates 1
+computeNumReacts (DropTableRates rates) = go rates 0
   where
     go rates n = do
       let chance = rates n
       roll <- randomRIO (1, chance) :: IO Int
       if roll == chance
         then go rates (n+1)
-        else return n
+        else do
+          when (n > 0) $ Logging.log Info $ "Reacting " <> showT n <> " times with rare emoji(s) to a message."
+          return n
 
 selectReact :: Int -> [Int] -> [(Int, RareEmoji)] -> IO (Int, RareEmoji)
 selectReact totalWeight ignore res = do
