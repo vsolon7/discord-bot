@@ -7,7 +7,7 @@ module Vesbot.Logging
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO (putStrLn, appendFile)
-import Data.Time (getCurrentTime, getTimeZone, utcToLocalTime, LocalTime(..), TimeOfDay(..))
+import Data.Time (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale, FormatTime)
 import Control.Monad (when, void)
 import Control.Concurrent (forkIO)
@@ -22,8 +22,11 @@ instance Show LogType where
     Warn -> "WARN"
     Error -> "ERROR"
 
+_LOGFILE :: FilePath
 _LOGFILE = "log.out"
+_LOGFILE_VERBOSITY_LEVEL :: LogType
 _LOGFILE_VERBOSITY_LEVEL = Warn
+_TERMINAL_VERBOSITY_LEVEL :: LogType
 _TERMINAL_VERBOSITY_LEVEL = Info
 
 showTime :: FormatTime t => t -> T.Text
@@ -35,5 +38,5 @@ log v msg = do
     liftIO . TIO.putStrLn $ "[" <> T.show v <> "] " <> msg
   when (_LOGFILE_VERBOSITY_LEVEL >= v) $ void . liftIO . forkIO $ do
       now <- getCurrentTime
-      let log = "[" <> (T.show v) <> " | "  <> showTime now <> "] " <> msg <> "\n"
-      TIO.appendFile _LOGFILE log
+      let out = "[" <> T.show v <> " | "  <> showTime now <> "] " <> msg <> "\n"
+      TIO.appendFile _LOGFILE out

@@ -6,10 +6,9 @@ module Vesbot.Database.Types
 
 import Discord.Internal.Types.Prelude (DiscordId)
 
-import Control.Concurrent.MVar (MVar, withMVar, newMVar)
+import Control.Concurrent.MVar (MVar, withMVar)
 import Database.SQLite.Simple as SQL
 import Database.SQLite.Simple.FromField
-import Database.SQLite.Simple.FromRow
 import Database.SQLite.Simple.Ok
 import Text.Read (readMaybe)
 import Data.Typeable

@@ -35,7 +35,7 @@ data PayCommandData = PayCommandData
   , payAmount :: Double
   } deriving Show
 
-data ViewCurrencyCommandData = ViewCurrencyCommandData
+newtype ViewCurrencyCommandData = ViewCurrencyCommandData
   { viewCurrencyUser :: UserId
   } deriving Show
 

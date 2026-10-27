@@ -23,7 +23,6 @@ import Vesbot.Logging as Logging (log, LogType(..))
 import Discord
 import Discord.Types
 import Discord.Interactions
-import Discord.Internal.Rest.Interactions
 import qualified Discord.Requests as R
 import qualified Data.Text as T
 
@@ -32,9 +31,6 @@ import UnliftIO.Concurrent (forkIO, threadDelay)
 import Control.Monad (void, forM, forM_)
 import Data.List (find)
 import Data.Foldable (traverse_)
-
-import qualified Data.Aeson as A
-import qualified Data.ByteString as BS
 
 
 showT :: Show a => a -> T.Text
@@ -59,18 +55,30 @@ makeEphemeral mess =
           Just (InteractionResponseMessageFlags [InteractionResponseMessageFlagEphermeral])
       }
 
-ephemeralResponseBasic t = makeEphemeral . interactionResponseMessageBasic $ t
+ephemeralResponseBasic :: T.Text -> InteractionResponse
+ephemeralResponseBasic = makeEphemeral . interactionResponseMessageBasic
 
 
 -- | Basic response type functions.
 
 announce :: ChannelId -> T.Text -> DiscordHandler ()
 announce acid content = do
-  let a = R.CreateMessage acid content in do
     r <- restCall $ R.CreateMessage acid content
     case r of
-      Left err -> Logging.log Error $ "Error sending an announcement. Discord returned the error:\n" <> showT err
-      _ -> Logging.log Info $ "Successfully sent an announcement."
+      Left err -> Logging.log Error . T.intercalate "\n" $
+        [ "Failed to send an announcement."
+        , logInfo
+        , "Discord returned the error:\n", showT err
+        ]
+      _ -> Logging.log Info . T.intercalate "\n" $
+        [ "Successfully sent an announcement."
+        , logInfo
+        ]
+  where
+    logInfo = T.intercalate "\n"
+      [ "CHANNEL: " <> showT acid
+      , "CONTENT: " <> content
+      ]
 
 reactToMessage :: Message -> T.Text -> DiscordHandler ()
 reactToMessage msg eid = void . restCall $ R.CreateReaction (messageChannelId msg, messageId msg) eid
@@ -84,15 +92,38 @@ sendMessage cid replyTo content =
   in do
     r <- restCall $ R.CreateMessageDetailed cid opts
     case r of
-      Left err -> Logging.log Error $ "Error sending a message. Discord returned the error:\n" <> showT err
-      _ -> Logging.log Info $ "Successfully sent a message to channel " <> showT cid <> "."
+      Left err -> Logging.log Error . T.intercalate "\n" $
+        [ "Error sending a message."
+        , logInfo
+        , "Discord returned the error:\n" <> showT err
+        ]
+      _ -> Logging.log Info . T.intercalate "\n" $
+        [ "Successfully sent a message."
+        , logInfo
+        ]
+  where
+    logInfo = T.intercalate "\n"
+      [ "CHANNEL: " <> showT cid
+      , "ID OF MESSAGE REPLYING TO: " <> showT replyTo
+      , "CONTENT: " <> content
+      ]
 
 ackButtonEditAndRemove :: InteractionId -> InteractionToken -> Message -> T.Text -> DiscordHandler ()
-ackButtonEditAndRemove iid itok omsg addition = do
+ackButtonEditAndRemove iid itok omsg addition =
   let ocontent = messageContent omsg
       reply = ocontent <> "\n" <> addition
       response = InteractionResponseMessage (Just False) (Just reply) Nothing Nothing Nothing (Just []) Nothing []
-  result <- restCall $ R.CreateInteractionResponse iid itok (InteractionResponseUpdateMessage response)
-  case result of
-    Left err -> Logging.log Error $ "Error editing the message a button is attached to. Discord Returned the error:\n" <> showT err
-    _        -> return ()
+  in do
+    result <- restCall $ R.CreateInteractionResponse iid itok (InteractionResponseUpdateMessage response)
+    case result of
+      Left err -> Logging.log Error . T.intercalate "\n" $
+        [ "Error editing the message a button is attached to."
+        , logInfo
+        , "Discord Returned the error:\n" <> showT err
+        ]
+      _        -> Logging.log Info . T.intercalate "\n" $
+        [ "Edited a message a button was attached to."
+        , logInfo
+        ]
+  where
+    logInfo = "MESSAGE ID: " <> (showT . messageId $ omsg)

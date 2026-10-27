@@ -3,9 +3,8 @@ module Vesbot.Actions where
 
 import Discord
 import Discord.Types
-import qualified Discord.Requests as R
 
-import Data.Aeson (ToJSON, FromJSON)
+import Data.Aeson ()
 import GHC.Generics (Generic)
 import Data.Int (Int64)
 

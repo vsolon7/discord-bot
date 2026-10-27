@@ -66,7 +66,7 @@ updateCurrency dbconn cu = withDB dbconn $
       "INSERT INTO currency (user_id, currency_amt) VALUES (:userid, :change)\
       \ON CONFLICT(user_id)\
       \DO UPDATE SET currency_amt = currency_amt + :change"
-      [ ":change" SQL.:= (currencyUpdateAmount cu), ":userid" SQL.:= (showT . currencyUpdateUser $ cu) ]
+      [ ":change" SQL.:= currencyUpdateAmount cu, ":userid" SQL.:= (showT . currencyUpdateUser $ cu) ]
 
 getRichestUsers :: DBConnection -> IO [CurrencyQuery]
 getRichestUsers dbconn = withDB dbconn $

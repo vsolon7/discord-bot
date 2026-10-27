@@ -4,11 +4,10 @@ module Vesbot.Activity.Types
 
 import Vesbot.Database.Types()
 
-import Discord.Types (UserId, GuildId, EmojiId)
+import Discord.Types (UserId)
 
 import Data.Int (Int64)
 import qualified Database.SQLite.Simple as SQL
-import qualified Data.Text as T
 
 
 data UserActivity = UserActivity
@@ -18,10 +17,10 @@ data UserActivity = UserActivity
   , activityReactees :: Int64
   } deriving Show
 
-data EmojiActivity = EmojiActivity
-  { emojiActivityEmojiId :: Either T.Text EmojiId
-  , emojiActivityTimesUsed :: Int64
-  }
+-- data EmojiActivity = EmojiActivity
+--  { emojiActivityEmojiId :: Either T.Text EmojiId
+--  , emojiActivityTimesUsed :: Int64
+--  }
 
 -- See Vesbot.Database for the GuildId/UserId FromField instance.
 instance SQL.FromRow UserActivity where

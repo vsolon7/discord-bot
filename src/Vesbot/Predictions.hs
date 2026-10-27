@@ -2,10 +2,10 @@
 module Vesbot.Predictions where
 
 import Vesbot.Logging as Logging (log, LogType(..))
-import Vesbot.Utils (sendMessage, liftIO, showT, ackButtonEditAndRemove, ephemeralResponseBasic, void)
+import Vesbot.Utils (liftIO, showT, ackButtonEditAndRemove, ephemeralResponseBasic, void)
 import Vesbot.Parsing (utcToInt)
 import Vesbot.Config (Env(..))
-import Vesbot.Database (DBConnection(..))
+import Vesbot.Database (DBConnection)
 import Vesbot.Predictions.Types (PredictionData(..))
 import Vesbot.Predictions.Database
 import Data.Int (Int64)
@@ -35,7 +35,7 @@ announceDuePrediction env pid cid mid = do
           content =
             predDateTimeStampRel <> ", on " <> predDateTimeStampAbs <> ", " <> userPing <> " " <> claim <>
             " that on or before this time today, the following would happen:\n" <> "*" <>
-            (predictionContent pd) <> "*.\n" <>
+            predictionContent pd <> "*.\n" <>
             "Were they correct?"
       in do 
         Logging.log Info $ "Announcing the due prediction with ID " <> showT pid <> "..."
@@ -66,5 +66,5 @@ predictionButtonResponse dbconn iid itok pid uid msg torf = do
           let result = if torf == "T" then "correct" else "incorrect"
               reply = "**Marked this prediction as having been " <> result <> ".**"
           ackButtonEditAndRemove iid itok msg reply
-          liftIO $ markResult dbconn pid (if torf == "T" then True else False)
+          liftIO $ markResult dbconn pid (torf == "T")
 

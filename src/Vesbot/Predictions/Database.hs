@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 module Vesbot.Predictions.Database
   ( initTable
   , savePrediction
@@ -17,7 +16,6 @@ import Discord.Internal.Types
 
 import Data.Int (Int64)
 import qualified Database.SQLite.Simple as SQL
-import qualified Data.Text as T
 
 
 initTable :: DBConnection -> IO ()
@@ -42,7 +40,7 @@ savePrediction dbconn p = withDB dbconn $
       \VALUES (?, ?, ?, ?, ?) \
       \RETURNING id" p
     case r of
-      [SQL.Only (Just id)] -> return id
+      [SQL.Only (Just pid)] -> return pid
       _ -> error "Somehow failed to get primary key after inserting a prediction into the database."
 
 getPredictionById :: DBConnection -> Int64 -> IO (Maybe PredictionData)
@@ -52,7 +50,7 @@ getPredictionById dbconn pid = withDB dbconn $
       "SELECT user_id, content, confidence, created_at, due_at \
       \FROM predictions \
       \WHERE id = ?"
-      [pid] :: IO ([PredictionData])
+      [pid] :: IO [PredictionData]
     case mr of
       (pd:_) -> return (Just pd)
       _      -> return Nothing
@@ -80,7 +78,7 @@ markAsNotified dbconn pid = withDB dbconn $
 markResult :: DBConnection -> Int64 -> Bool -> IO ()
 markResult dbconn pid res = withDB dbconn $
   \conn -> do
-    let intres = if res == True then 1 else 0 :: Int64
+    let intres = if res then 1 else 0 :: Int64
     SQL.execute conn
       "UPDATE predictions \
       \SET came_true = ? \

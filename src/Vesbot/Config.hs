@@ -1,40 +1,40 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, OverloadedStrings, MultiWayIf #-}
-module Vesbot.Config
-  ( Env(..)
-  , Config(..)
-  , CurrencyConfig(..)
-  , DropTableRates(..)
-  , initBot
-  ) where
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-import Vesbot.Utils (forM_, traverse_)
-import Vesbot.Parsing (parseJSON)
-import Vesbot.Logging as Logging (log, LogType(..))
-import Vesbot.Actions (Action(..))
-import Vesbot.Responses as Responses (KeywordResponse, RareEmoji, RareEmojiData(..), createRareEmoji, initKeywordResponses)
-import Vesbot.Database.Types (DBConnection)
+module Vesbot.Config (
+  Env (..),
+  Config (..),
+  CurrencyConfig (..),
+  DropTableRates (..),
+  initBot,
+) where
+
+import JSONScheduler.Scheduler as Scheduler (Schedule (..), Scheduler (..), initScheduler, scheduleJob)
+import Vesbot.Actions (Action (..))
 import Vesbot.Database as Database (initDBConnection)
-import JSONScheduler.Scheduler.Bell (Bell(..))
-import JSONScheduler.Scheduler as Scheduler (Scheduler(..), Schedule(..), initScheduler, scheduleJob)
+import Vesbot.Database.Types (DBConnection)
+import Vesbot.Logging as Logging (LogType (..), log)
+import Vesbot.Parsing (parseJSON)
+import Vesbot.Responses as Responses (KeywordResponse, RareEmoji, RareEmojiData (..), createRareEmoji, initKeywordResponses)
+import Vesbot.Utils (forM_, traverse_)
 
 import Discord.Types
 
-import Data.Time
-import Data.Aeson (ToJSON, FromJSON, eitherDecodeFileStrict, encode)
-import GHC.Generics (Generic)
-import Text.Read (readMaybe)
-import Data.Maybe (fromMaybe, catMaybes)
-import Control.Concurrent.MVar (newEmptyMVar)
+import Data.Aeson (FromJSON)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import qualified Data.ByteString.Lazy as BS (putStr)
+import GHC.Generics (Generic)
+import Text.Read (readMaybe)
 
+--TODO: asdfasdf
 data CurrencyConfig = CurrencyConfig
   { currencyName :: T.Text
   , currencySymbolKilo :: T.Text
   , currencySymbolNormal :: T.Text
   , currencySymbolMilli :: T.Text
-  } deriving (Show, Generic, ToJSON, FromJSON)
+  }
+  deriving (Show, Generic, ToJSON, FromJSON)
 
 newtype DropTableRates = DropTableRates (Int -> Int) -- generator function for the chance for 1 drop, 2 drops, 3 drops, etc.
 
@@ -56,11 +56,10 @@ type ActionId = T.Text
 data InitialAction = InitialAction ActionId Action Schedule
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
-
 _DATABASE_FILE :: FilePath
 _DATABASE_FILE = "appdata/database/data.db"
 _SCHEDULER_DATABASE_FILE :: FilePath
-_SCHEDULER_DATABASE_FILE  = "appdata/scheduler/scheduler.db"
+_SCHEDULER_DATABASE_FILE = "appdata/scheduler/scheduler.db"
 _RESPONSES_FILE :: FilePath
 _RESPONSES_FILE = "appdata/config/responses.json"
 _INITIAL_ACTIONS_FILE :: FilePath
@@ -77,10 +76,8 @@ _DROP_TABLE_RATES n
   | n > 0 = 2
   | otherwise = 0
 
-
 getToken :: IO T.Text
 getToken = TIO.readFile "../discord-bot-apidata/token"
-
 
 getGuildId :: IO GuildId
 getGuildId = do
@@ -90,7 +87,6 @@ getGuildId = do
     Nothing -> do
       Logging.log Error "Could not parse Guild ID from discord-bot-apidata/guildid"
       error "Fatal error."
-
 
 initBot :: IO (T.Text, Env, Config)
 initBot = do
@@ -111,9 +107,9 @@ initBot = do
 
   let validateRareEmoji red
         | rareEmojiDataChance red < 0 = do
-            Logging.log Error $ "Lucky emoji chance sent to <0."
+            Logging.log Error "Lucky emoji chance sent to <0."
         | rareEmojiDataChance red == 0 = do
-            Logging.log Warn $ "Lucky emoji chance set to 0. This means that this reaction is removed from the drop table."
+            Logging.log Warn "Lucky emoji chance set to 0. This means that this reaction is removed from the drop table."
         | otherwise = return ()
 
   traverse_ validateRareEmoji reds
@@ -123,15 +119,14 @@ initBot = do
 
   return (t, Env conn s, Config gid krs acid cc res rates)
 
-
 scheduleJSONActions :: [InitialAction] -> Scheduler Action -> IO ()
 scheduleJSONActions as scheduler =
-  forM_ as $ \(InitialAction id a s) ->
-    scheduleJob scheduler (Just id) s a
+  forM_ as $ \(InitialAction aId a s) ->
+    scheduleJob scheduler (Just aId) s a
 
 readAnnouncementChannelId :: FilePath -> IO ChannelId
 readAnnouncementChannelId file = do
-  cidText <- readFile _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE
+  cidText <- readFile file
   let acid = read cidText
-  Logging.log Info $ "Successfully parsed announcement channel ID in " <> (T.pack _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE) <> "."
+  Logging.log Info $ "Successfully parsed announcement channel ID in " <> T.pack _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE <> "."
   return acid

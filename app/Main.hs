@@ -25,7 +25,7 @@ main = do
         , discordOnEvent = Handler.eventHandler cfg env
         , discordOnLog = Logging.log Error
         , discordOnEnd = do
-            Logging.log Always $ "Bot has disconnected. Cleaning up..."
+            Logging.log Always "Bot has disconnected. Cleaning up..."
             closeScheduler (envScheduler env)
             closeDBConnection (envDBConnection env)
         , discordGatewayIntent = def {gatewayIntentMessageContent = True}

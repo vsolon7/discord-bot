@@ -11,11 +11,9 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 import Data.Time
-import Data.Time.Clock (nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds, posixSecondsToUTCTime)
 import Data.Int (Int64)
 import Data.Char (isDigit)
-import Data.Maybe (listToMaybe)
 import Data.Scientific (toRealFloat)
 
 
@@ -25,9 +23,9 @@ intToUTC = posixSecondsToUTCTime . realToFrac
 utcToInt :: UTCTime -> Int64
 utcToInt = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
 
-safeHead :: a -> [a] -> a
-safeHead d [] = d
-safeHead _ (x:xs) = x
+defHead :: a -> [a] -> a
+defHead d [] = d
+defHead _ (x:_) = x
 
 
 parseJSON :: AE.FromJSON a => FilePath -> IO a
@@ -48,7 +46,7 @@ parseDateInput :: UTCTime -> String -> Maybe UTCTime
 parseDateInput currTime inpt = case words inpt of
   ("on":absInpt:timeInpt:timeZoneOrEmpty) ->
     let
-      timeZone = parseTimeM False defaultTimeLocale "%Z" (safeHead "UTC" timeZoneOrEmpty)
+      timeZone = parseTimeM False defaultTimeLocale "%Z" (defHead "UTC" timeZoneOrEmpty)
     in do
       date <- parseTimeM False defaultTimeLocale "%m-%d-%Y" absInpt :: Maybe Day
       time <- parseTimeM False defaultTimeLocale "%R" timeInpt :: Maybe TimeOfDay
@@ -112,7 +110,7 @@ getUserData _ = Nothing
 
 -- turn an emoji into its text based name
 emojiToText :: Emoji -> T.Text
-emojiToText (Emoji mid name _ _ _ _) =
-  case mid of
+emojiToText (Emoji meid name _ _ _ _) =
+  case meid of
     Nothing -> name
-    Just id -> "<:" <> name <> ":" <> T.show id <> ">"
+    Just eid -> "<:" <> name <> ":" <> T.show eid <> ">"

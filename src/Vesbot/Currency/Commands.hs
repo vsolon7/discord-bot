@@ -6,11 +6,11 @@ module Vesbot.Currency.Commands
   , viewEmojisCommand
   ) where
 
-import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, liftIO, void, forM)
+import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, liftIO, void)
 import Vesbot.Parsing (getUserData, extractUserOption, extractNumberOption)
 import Vesbot.Config (Config(..), CurrencyConfig(..))
 import Vesbot.Database.Types (DBConnection)
-import Vesbot.Currency.Types (ViewCurrencyCommandData(..), PayCommandData(..), CurrencyQuery(..), EmojiQuery(..), CurrencyUpdate(..))
+import Vesbot.Currency.Types (PayCommandData(..), CurrencyQuery(..), EmojiQuery(..), CurrencyUpdate(..))
 import Vesbot.Currency.Database (getCurrency, getEmojis, updateCurrency, getRichestUsers)
 import Vesbot.BotCommands.Types (BotCommand(..))
 
@@ -21,34 +21,32 @@ import Discord.Internal.Types.ApplicationCommands
 import Discord.Internal.Types.Interactions
 
 import qualified Data.Text as T
-import Data.List (intersperse)
-import Numeric (showFFloat)
 
 
 splitDouble :: Double -> (Int, Int, Int)
 splitDouble d =
-    let millis = round $ d * (10^3) :: Int
-        (kilo, rest1)   = divMod millis (10^6)
-        (normal, milli) = divMod rest1 (10^3)
+    let millis = round $ d * (10^(3 :: Int))
+        (kilo, rest1)   = divMod millis (10^(6 :: Int))
+        (normal, milli) = divMod rest1 (10^(3 :: Int))
     in (kilo, normal, milli)
 
 showC :: CurrencyConfig -> Double -> T.Text
-showC (CurrencyConfig name sk sn sm) d =
+showC (CurrencyConfig _ sk sn sm) d =
   let (k, n, m) = splitDouble d
   in sk <> showT k <> " " <> sn <> showT n <> " " <> sm <> showT m
 
 
 parseUserFieldCommand :: Interaction -> Maybe OptionsData -> Either T.Text UserId
-parseUserFieldCommand cmd@(InteractionApplicationCommand {}) opts = do
+parseUserFieldCommand (InteractionApplicationCommand {}) opts = do
   dataValues <-
     maybeToEither
       "Could not access the view currency command's option fields."
       opts
-  uid <-
-    maybeToEither
+  maybeToEither
       "Could not access user field in the view currency command."
       (extractUserOption "user" dataValues)
-  return uid
+
+parseUserFieldCommand _ _ = Left "Tried to parse a user field in a non application command interaction."
 
 
 parsePayCommand :: Interaction -> Maybe OptionsData -> Either T.Text PayCommandData
@@ -61,7 +59,7 @@ parsePayCommand cmd@(InteractionApplicationCommand {}) opts = do
     maybeToEither
       "Could not access \"pay to\" field."
       (extractUserOption "pay_to" dataValues)
-  payAmount <-
+  amount <-
     maybeToEither
       "Could not access payment amount field."
       (extractNumberOption "amount" dataValues)
@@ -73,7 +71,9 @@ parsePayCommand cmd@(InteractionApplicationCommand {}) opts = do
     PayCommandData
       { payFromUser = uid
       , payToUser = payTo
-      , payAmount = payAmount }
+      , payAmount = amount }
+
+parsePayCommand _ _ = Left "Tried to parse a pay command on an interaction that is not an application command."
 
 
 createPaymentResponse :: DBConnection -> CurrencyConfig -> Either T.Text PayCommandData -> IO InteractionResponse
@@ -86,8 +86,8 @@ createPaymentResponse dbconn ccfg pcd =
           response <- do
             if userCurrency >= payAmount p then
               let response =
-                    "Paid " <> (showC ccfg (payAmount p)) <> " to <@" <> showT (payToUser p) <> ">."
-                  remove = CurrencyUpdate (payFromUser p) ((-1) * (payAmount p))
+                    "Paid " <> showC ccfg (payAmount p) <> " to <@" <> showT (payToUser p) <> ">."
+                  remove = CurrencyUpdate (payFromUser p) ((-1) * payAmount p)
                   add = CurrencyUpdate (payToUser p) (payAmount p)
               in do
                   updateCurrency dbconn remove -- TODO: can be slightly more efficient as a single SQL transaction...
@@ -100,14 +100,13 @@ createPaymentResponse dbconn ccfg pcd =
 
 createViewCurrencyResponse :: DBConnection -> CurrencyConfig -> Either T.Text UserId -> IO InteractionResponse
 createViewCurrencyResponse dbconn ccfg userOrErr =
-  let cs = currencyName ccfg
-  in  case userOrErr of
-        Left err -> return (ephemeralResponseBasic err)
-        Right uid -> do
-          c <- getCurrency dbconn uid
-          let userPing = "<@" <> showT uid <> ">"
-              response = userPing <> " has " <> showC ccfg (currencyQueryAmount c) <> "."
-          return (ephemeralResponseBasic response)
+  case userOrErr of
+    Left err -> return (ephemeralResponseBasic err)
+    Right uid -> do
+      c <- getCurrency dbconn uid
+      let userPing = "<@" <> showT uid <> ">"
+          response = userPing <> " has " <> showC ccfg (currencyQueryAmount c) <> "."
+      return (ephemeralResponseBasic response)
 
 
 createViewEmojisResponse :: DBConnection -> Either T.Text UserId -> IO InteractionResponse
@@ -127,7 +126,7 @@ createViewRichestUsersResponse :: DBConnection -> CurrencyConfig -> IO Interacti
 createViewRichestUsersResponse dbconn ccfg = do
   qs <- getRichestUsers dbconn
   let rs =
-        flip map (zip [1..] qs) $ \(n, q) ->
+        flip map (zip [1::Int ..] qs) $ \(n, q) ->
           let userPing = "<@" <> showT (currencyQueryUser q) <> ">"
               r = showT n <> ". " <> userPing <> ": " <> showC ccfg (currencyQueryAmount q) <> "."
           in r
@@ -232,7 +231,7 @@ viewEmojisCommand dbconn = SlashCommand
         CreateApplicationCommandChatInput
           "viewemojis"
           Nothing
-          ("Check how many emojis someone has")
+          "Check how many emojis someone has"
           Nothing
           (Just $ OptionsValues [ o1 ])
           Nothing

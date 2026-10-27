@@ -10,12 +10,11 @@ module Vesbot.Responses
   , createRareEmoji
   ) where
 
-import Vesbot.Utils (void, threadDelay, liftIO, sendMessage, reactToMessage)
+import Vesbot.Utils (threadDelay, liftIO, sendMessage, reactToMessage)
 import Vesbot.Parsing (parseJSON)
 
 import Discord
 import Discord.Types
-import qualified Discord.Requests as R
 
 import qualified Data.Text as T
 import qualified Data.Aeson as AE
@@ -50,12 +49,12 @@ createKeywordResponse :: KeywordResponseData -> KeywordResponse
 createKeywordResponse res = KeywordResponse
   { responseData = res
   , responseHandler = \msg -> do
-      case (responseEmoji res) of
+      case responseEmoji res of
         "" -> return ()
         _  -> do
           reactToMessage msg (responseEmoji res)
           liftIO . threadDelay $ 100000
-      case (responseOutput res) of
+      case responseOutput res of
         ""      -> return ()
         content -> do
           sendMessage (messageChannelId msg) (Just $ messageId msg) content

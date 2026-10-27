@@ -1,11 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Handler.Reactions where
 
-import Vesbot.Utils (liftIO, showT, fromBot)
+import Vesbot.Utils (liftIO, showT)
 import Vesbot.Parsing (emojiToText)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..))
-import Vesbot.Database.Types (DBConnection)
 import Vesbot.Activity (modifyReactionActivity, addEmojiUse)
 import Vesbot.Currency (updateCurrency, updateEmojis, CurrencyUpdate(..), EmojiUpdate(..))
 
@@ -17,7 +16,7 @@ import Control.Monad (unless)
 import Data.Time (getCurrentTime)
 
 reactionAddHandler :: Config -> Env -> ReactionInfo -> DiscordHandler ()
-reactionAddHandler cfg env info@(ReactionInfo _ _ _ _ emoji) = do
+reactionAddHandler _ env info@(ReactionInfo _ _ _ _ emoji) = do
   now <- liftIO getCurrentTime
   mUsers <- extractReactionInfo info
   case mUsers of
@@ -28,15 +27,15 @@ reactionAddHandler cfg env info@(ReactionInfo _ _ _ _ emoji) = do
       liftIO $ do
         let reacteeId = userId reactee
             reacterId = userId reacter
-            emojiName = emojiToText emoji
-        updateEmojis (envDBConnection env) (EmojiUpdate reacteeId [(emojiName, 1)])
+            eName = emojiToText emoji
+        updateEmojis (envDBConnection env) (EmojiUpdate reacteeId [(eName, 1)])
         unless (userIsBot reacter) $ do -- bots reacting to you doesn't affect emoji use history
           updateCurrency (envDBConnection env) (CurrencyUpdate reacteeId 0.1)
           modifyReactionActivity (envDBConnection env) reacterId reacteeId
-          addEmojiUse (envDBConnection env) emojiName now
+          addEmojiUse (envDBConnection env) eName now
 
 reactionRemoveHandler :: Config -> Env -> ReactionInfo -> DiscordHandler ()
-reactionRemoveHandler cfg env info@(ReactionInfo _ _ _ _ emoji) = do
+reactionRemoveHandler _ env info@(ReactionInfo _ _ _ _ emoji) = do
   mUsers <- extractReactionInfo info
   case mUsers of
     Nothing -> return ()
@@ -44,8 +43,8 @@ reactionRemoveHandler cfg env info@(ReactionInfo _ _ _ _ emoji) = do
       unless (userId unreacter == userId unreactee || userIsBot unreactee) $
       liftIO $ do
         let unreacteeId = userId unreactee
-            emojiName = emojiToText emoji
-        updateEmojis (envDBConnection env) (EmojiUpdate unreacteeId [(emojiName, -1)])
+            eName = emojiToText emoji
+        updateEmojis (envDBConnection env) (EmojiUpdate unreacteeId [(eName, -1)])
 
 extractReactionInfo :: ReactionInfo -> DiscordHandler (Maybe (User, User))
 extractReactionInfo (ReactionInfo rUid mGid cid oMid _) = do
@@ -60,11 +59,11 @@ extractReactionInfo (ReactionInfo rUid mGid cid oMid _) = do
     Right rUsr ->
       case mGid of
         Nothing -> do
-          Logging.log Warn $
+          Logging.log Warn
             "Tried to update reaction activity for a reaction that did not happen in a guild. The bot\
             \is not designed for this use case. Ignoring the reaction..."-- if the reaction didn't happen in a guild, we don't care
           return Nothing
-        Just gid -> case oMsgOrErr of
+        Just _ -> case oMsgOrErr of
           Left err -> do
             Logging.log Error $
               "Failed to get the original message when trying to update a user's emoji reaction score. \

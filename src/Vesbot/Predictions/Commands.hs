@@ -6,13 +6,13 @@ module Vesbot.Predictions.Commands
 import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, void, liftIO)
 import Vesbot.Config (Env(..))
 import Vesbot.Logging as Logging (log, LogType(..))
-import Vesbot.Parsing (extractNumberOption, extractStringOption, parseDateInput, utcToInt, intToUTC, getUserData)
+import Vesbot.Parsing (extractNumberOption, extractStringOption, parseDateInput, utcToInt, getUserData)
 import Vesbot.Actions (Action(..))
 import Vesbot.Predictions.Types
 import Vesbot.Predictions.Database
 import Vesbot.BotCommands.Types (BotCommand(..))
 
-import JSONScheduler.Scheduler (Schedule(..), Scheduler(..), scheduleJob)
+import JSONScheduler.Scheduler (Schedule(..), scheduleJob)
 
 import Discord
 import Discord.Types
@@ -20,12 +20,11 @@ import Discord.Internal.Types.Interactions
 import Discord.Internal.Types.ApplicationCommands
 import qualified Discord.Requests as R
 import Data.Time
-import Data.Int (Int64)
 import qualified Data.Text as T
 
 
 parsePredictionCommand :: UTCTime -> Interaction -> Maybe OptionsData -> Either T.Text (PredictionData, ChannelId)
-parsePredictionCommand currTime (cmd@InteractionApplicationCommand {}) opts =
+parsePredictionCommand currTime cmd@InteractionApplicationCommand {} opts =
   do
     dataValues <-
       maybeToEither
@@ -57,13 +56,16 @@ parsePredictionCommand currTime (cmd@InteractionApplicationCommand {}) opts =
         (getUserData . interactionUser $ cmd)
     dueDateUTC <-
       maybeToEither
-        "Error parsing prediction date. Here are the formatting options.\n\
-        \**Relative time:** \"in #w\" or \"in #d\" or \"in #h\" or \"in #m\", where # is a positive integer.\
-        \ \"w\" stands for weeks, \"d\" stands for days, \"h\" stands for hours, and \"m\" stands for minutes.\n\
-        \**Absolute time:** \"on month-day-year HH:MM <timezone>\", where the timezone is optional.\
-        \If no timezone is entered, the bot will default to UTC. Timezone examples are CST, CDT, EST, etc."
+        (T.intercalate "\n"
+          [ "Error parsing prediction date. Here are the formatting options."
+          , "**Relative time:** \"in #w\" or \"in #d\" or \"in #h\" or \"in #m\", where # is a positive integer.\
+          \ \"w\" stands for weeks, \"d\" stands for days, \"h\" stands for hours, and \"m\" stands for minutes."
+          , "**Absolute time:** \"on month-day-year HH:MM <timezone>\", where the timezone is optional.\
+          \If no timezone is entered, the bot will default to UTC. Timezone examples are CST, CDT, EST, etc."
+          ]
+        )
         (parseDateInput currTime . T.unpack $ dueDateText)
-    return $
+    return
       ( PredictionData
           { predictionUserId = uid
           , predictionContent = predText
@@ -92,35 +94,17 @@ createInitialPredictionResponse currTime mpcd =
           responseStart = case predictionConfidence pd of
             Nothing -> "They claim"
             Just c  -> "They are " <> showT c <> "%" <> " confident"
-          response =
-            userPing <> " has made a prediction!\n" <>
-            responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
-            ", the following will occur:\n" <>
-            predictionContent pd <> "."
+          response = T.intercalate "\n"
+            [ userPing <> " has made a prediction!"
+            , responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
+            ", the following will occur:"
+            , predictionContent pd <> "."
+            ]
         in
           interactionResponseBasic response
       else
         ephemeralResponseBasic "You can only predict events in the future!"
     Left err -> ephemeralResponseBasic err
-
-
-predictionDataToAnnounceAction :: PredictionData -> Int64 -> ChannelId -> MessageId -> Action
-predictionDataToAnnounceAction pd pid cid mid =
-  let
-    userPing = "<@" <> showT (predictionUserId pd) <> ">"
-    predDateUTC = showT . utcToInt $ predictionMadeDate pd
-    predDateTimeStampRel = "<t:" <> predDateUTC <> ":R>"
-    predDateTimeStampAbs = "<t:" <> predDateUTC <> ":f>"
-    claim = case predictionConfidence pd of
-                      Nothing -> "claimed"
-                      Just c  -> "was " <> showT c <> "%" <> " confident"
-    content =
-      predDateTimeStampRel <> ", on " <> predDateTimeStampAbs <> ", " <> userPing <> " " <> claim <>
-      " that on or before this time today, the following would happen:\n" <> "*" <>
-      (predictionContent pd) <> "*.\n" <>
-      "Were they correct?"
-  in
-    AnnounceDuePrediction pid cid mid
 
 
 makePrediction :: Env -> BotCommand
@@ -153,7 +137,7 @@ makePrediction env = SlashCommand
             Right msg -> do
               void . liftIO $ do
                 pid <- savePrediction (envDBConnection env) pd
-                let a = predictionDataToAnnounceAction pd pid cid (messageId msg)
+                let a = AnnounceDuePrediction pid cid (messageId msg)
                 r <- scheduleJob (envScheduler env) (Just $ "prediction:" <> showT pid) (Once . predictionDueDate $ pd) a
                 case r of
                   Left err -> Logging.log Error $ "Error scheduling a prediction due date. \
@@ -164,44 +148,15 @@ makePrediction env = SlashCommand
         _ -> return ()
   }
     where
+      predictionField = OptionValueString "prediction" Nothing "What you are predicting will happen" Nothing True (Left False) (Just 1) Nothing
+      dateField = OptionValueString "date" Nothing "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\"" Nothing True (Left False) (Just 1) Nothing
+      confidenceField =  OptionValueNumber "confidence" Nothing "(Optional) Prediction confidence (ex: 20.4 means 20.4%)" Nothing False (Left False) (Just 0) (Just 100)
       reg = -- Command registration
         CreateApplicationCommandChatInput
           "predict"
           Nothing
           "Predict the future!"
-          Nothing (
-            Just (
-              OptionsValues
-                [
-                  OptionValueString
-                    "prediction"
-                    Nothing
-                    "What you are predicting will happen"
-                    Nothing
-                    True
-                    (Left False)
-                    (Just 1)
-                    Nothing
-                , OptionValueString
-                    "date"
-                    Nothing
-                    "\"in #[w|d|h|m]\" or \"on MM-DD-YYYY HH:MM <timezone>\""
-                    Nothing
-                    True
-                    (Left False)
-                    (Just 1)
-                    Nothing
-                , OptionValueNumber
-                    "confidence"
-                    Nothing
-                    "(Optional) Prediction confidence (ex: 20.4 means 20.4%)"
-                    Nothing
-                    False
-                    (Left False)
-                    (Just 0)
-                    (Just 100)
-                ]
-              )
-            )
+          Nothing
+          (Just $ OptionsValues [predictionField, dateField, confidenceField ])
           Nothing
           (Just False)

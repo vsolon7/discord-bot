@@ -12,9 +12,7 @@ import Discord
 import Discord.Interactions as I
 import qualified Discord.Requests as R
 
-import Data.Time (getCurrentTime, diffUTCTime, NominalDiffTime)
-import Data.List (intersperse, mapAccumL)
-import qualified Data.Text as T
+import Data.Time (getCurrentTime)
 
 
 viewAC :: DBConnection -> Config -> BotCommand
@@ -23,13 +21,11 @@ viewAC dbconn cfg = SlashCommand
   , commandRegistration = I.createChatInput "viewac" "View the last obnoxious argument"
   , slashCommandHandler = \intr _ -> do
       mt <- liftIO . getLastArgument $ dbconn
-      now <- liftIO getCurrentTime
 
       let reply = case mt of
             Nothing -> "There have been no obnoxious arguments so far!"
             Just (t, cid, mid) ->
-              let since = now `diffUTCTime` t
-                  timestamp = "<t:" <> (showT . utcToInt $ t) <> ":R>"
+              let timestamp = "<t:" <> (showT . utcToInt $ t) <> ":R>"
                   link = "https://discord.com/channels/" <> (showT . cfgGuildId $ cfg) <> "/" <> cid <> "/" <> mid
               in "The last obnoxious argument occured " <> timestamp <> ". You can view it here:\n" <> link
 
@@ -52,10 +48,10 @@ resetAC dbconn = MessageCommand
           mid = applicationCommandDataTargetMessageId d
       reply <-
         case mcid of
-          Nothing -> return ("Error getting channel ID for the command.")
+          Nothing -> return "Error getting channel ID for the command."
           Just cid -> do
             liftIO $ updateArgumentTime dbconn now cid mid
-            return ("Time since the last obnoxious argument: 0 days...")
+            return "Time since the last obnoxious argument: 0 days..."
       void . restCall $
         R.CreateInteractionResponse
           (interactionId intr)

@@ -5,19 +5,13 @@ module Vesbot.BotCommands
   , messageCommands
   ) where
 
-import Vesbot.Utils (liftIO, void, showT)
+import Vesbot.Utils (showT)
 import Vesbot.Config (Env(..), Config(..))
-import Vesbot.Database (DBConnection)
 import Vesbot.BotCommands.Types
 
 import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
 import Vesbot.Predictions.Commands (makePrediction)
 import Vesbot.Currency.Commands (viewCurrencyCommand, payCommand, viewRichestUsersCommand, viewEmojisCommand)
-
-import Discord
-import Discord.Internal.Types.ApplicationCommands
-import Discord.Internal.Types.Interactions
-import qualified Discord.Requests as R
 
 import qualified Data.Text as T
 import Data.Time (getCurrentTime)

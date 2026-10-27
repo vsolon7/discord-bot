@@ -4,6 +4,8 @@ module Vesbot.Activity.Database
   , withDB
   , initUserActivityTable
   , initEmojiUseTable
+  , clearAllUserActivityData 
+  , getAllUserActivity 
   , modifyReactionActivity
   , incrementMessageActivity
   , addEmojiUse
@@ -64,7 +66,7 @@ modifyReactionActivity dbconn reacter reactee = withDB dbconn $
         "INSERT INTO user_activity (user_id, num_reactees) VALUES (:reacter, 1)\
         \ON CONFLICT(user_id)\
         \DO UPDATE SET num_reactees = num_reactees + 1;"
-        [ ":reacter" SQL.:= (showT reacter) ]
+        [ ":reacter" SQL.:= showT reacter ]
 
 
 incrementMessageActivity :: DBConnection -> UserId -> IO ()
@@ -74,7 +76,7 @@ incrementMessageActivity dbconn uid = withDB dbconn $
       "INSERT INTO user_activity (user_id, num_messages) VALUES (:uid, 1)\
       \ON CONFLICT(user_id)\
       \DO UPDATE SET num_messages = num_messages + 1"
-      [ ":uid" SQL.:= (showT uid) ]
+      [ ":uid" SQL.:= showT uid ]
 
 
 addEmojiUse :: DBConnection -> T.Text -> UTCTime -> IO ()

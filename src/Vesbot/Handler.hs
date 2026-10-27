@@ -1,10 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 module Vesbot.Handler where
 
 import Vesbot.Utils (showT, forM_)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config as Config (Env(..), Config(..))
-import Vesbot.Database.Types (DBConnection)
 import Vesbot.Handler.Interactions (interactionHandler)
 import Vesbot.Handler.Messages (messageHandler)
 import Vesbot.Handler.Reactions (reactionAddHandler, reactionRemoveHandler)
@@ -22,20 +21,19 @@ eventHandler :: Config
                -> Event
                -> DiscordHandler ()
 eventHandler cfg env =
-  \event ->
-    case event of
-      Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady env cfg appid (cfgGuildId cfg)
-      InteractionCreate intr     -> interactionHandler cfg env intr
-      MessageCreate mess         -> messageHandler cfg env mess
-      MessageReactionAdd info    -> reactionAddHandler cfg env info
-      MessageReactionRemove info -> reactionRemoveHandler cfg env info
-      _                          -> return ()
+  \case
+    Ready _ _ _ _ _ _ (PartialApplication appid _) -> onReady env cfg appid (cfgGuildId cfg)
+    InteractionCreate intr     -> interactionHandler cfg env intr
+    MessageCreate mess         -> messageHandler cfg env mess
+    MessageReactionAdd info    -> reactionAddHandler cfg env info
+    MessageReactionRemove info -> reactionRemoveHandler cfg env info
+    _                          -> return ()
 
 
 -- Registers the application commands defined in Commands.hs when the bot is ready.
 onReady :: Env -> Config -> ApplicationId -> GuildId -> DiscordHandler ()
 onReady env cfg appId gId = do
-  Logging.log Always $ "Bot ready!"
+  Logging.log Always "Bot ready!"
 
   let scs = BC.slashCommands env cfg
       mcs = BC.messageCommands env

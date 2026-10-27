@@ -1,12 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vesbot.Handler.Messages where
 
-import Vesbot.Utils (liftIO, fromBot, sendMessage, traverse_, forM, forM_, threadDelay, announce, showT)
+import Vesbot.Utils (liftIO, fromBot, forM_, threadDelay, announce, showT)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..), DropTableRates(..))
-import Vesbot.Database.Types (DBConnection)
 import Vesbot.Activity (updateMessageActivity)
-import Vesbot.Responses (KeywordResponseData(..), KeywordResponse(..), RareEmoji(..), createKeywordResponse)
+import Vesbot.Responses (KeywordResponseData(..), KeywordResponse(..), RareEmoji(..))
 
 import Discord
 import Discord.Types
@@ -14,7 +13,6 @@ import Discord.Types
 import qualified Data.Text as T
 import Control.Monad (unless, when)
 import Data.List (find)
-import Data.Time (getCurrentTime)
 import System.Random
 
 
@@ -36,12 +34,14 @@ messageHandler cfg env =
       -- | Update message activity
       case messageGuildId msg of
         Nothing ->
-          Logging.log Warn $ "Received message does not have an associated Guild ID! Ignoring it... the bot should \
-          \only be used in a server."
+          Logging.log Warn
+            "Received message does not have an associated Guild ID! Ignoring it... the bot should \
+            \only be used in a server."
         Just gid ->
           if gid /= cfgGuildId cfg
-            then Logging.log Error $ "Received message with a different Guild ID than the Guild ID the bot was configured \
-                              \ with. Does the token correspond to the Guild ID in the guildid file?"
+            then Logging.log Error
+              "Received message with a different Guild ID than the Guild ID the bot was configured with.\
+              \Does the token correspond to the Guild ID in the guildid file?"
           else liftIO $ updateMessageActivity (envDBConnection env) msg
   where
     contains :: Message -> T.Text -> Bool
@@ -66,37 +66,39 @@ rareEmojiRoll cfg msg = do
 computeNumReacts :: DropTableRates -> IO Int
 computeNumReacts (DropTableRates rates) = go rates 0
   where
-    go rates n = do
+    go r n = do
       let chance = rates n
       roll <- randomRIO (1, chance) :: IO Int
       if roll == chance
-        then go rates (n+1)
+        then go r (n+1)
         else do
           when (n > 0) $ Logging.log Info $ "Reacting " <> showT n <> " times with rare emoji(s) to a message."
           return n
 
+-- BUG: there is a very small chance that the program will crash (well, discordOnError will catch the exception
+-- so it won't ACTUALLY crash, but this will fail) if the bot tries to select too many emojis from the rare emoji
+-- list.
 selectReact :: Int -> [Int] -> [(Int, RareEmoji)] -> IO (Int, RareEmoji)
 selectReact totalWeight ignore res = do
   roll <- randomRIO (1, totalWeight) :: IO Int
   go roll res
   where
     go _ [] = do
-      Logging.log Error $ "Tried to select an emoji from an empty list of emojis after doing a rare drop roll."
+      Logging.log Error "Tried to select an emoji from an empty list of emojis after doing a rare drop roll."
       error "fatal error"
     go _ [r] = return r
     go num ((n,r):rs) =
       if n `elem` ignore
         then go num rs
         else do
-          let num' = num - (rareEmojiChance r)
+          let num' = num - rareEmojiChance r
           if num' <= 0
             then return (n,r)
             else go num' rs
 
 selectRandomEmojiReacts :: DropTableRates -> [RareEmoji] -> IO [RareEmoji]
 selectRandomEmojiReacts dtr res = do
-  let numEmojis = length res
-      totalWeight = sum . map rareEmojiChance $ res
+  let totalWeight = sum . map rareEmojiChance $ res
   numReacts <- computeNumReacts dtr
   go totalWeight numReacts [] []
   where
@@ -105,5 +107,5 @@ selectRandomEmojiReacts dtr res = do
     go _ 0 _ selected = return (map snd selected)
     go w n ignore selected = do
       r <- selectReact w ignore ixres
-      let w' = sum . map rareEmojiChance $ [ r | (n,r) <- ixres, n `notElem` ignore ]
+      let w' = sum . map rareEmojiChance $ [ s | (m,s) <- ixres, m `notElem` ignore ]
       go w' (n-1) (fst r:ignore) (r:selected)

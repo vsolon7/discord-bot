@@ -1,6 +1,6 @@
 module Vesbot.Database
   ( initDBConnection
-  , DBConnection(..)
+  , DBConnection
   , withDB
   , closeDBConnection
   ) where
