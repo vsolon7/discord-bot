@@ -24,10 +24,9 @@ sendReminder env rid cid mid = do
     Just rd ->
       let ping = "<@" <> showT (reminderUserId rd) <> ">"
           predDateUTC = showT . utcToInt $ reminderMadeDate rd
-          predDateTimeStampRel = "<t:" <> predDateUTC <> ":R>"
           predDateTimeStampAbs = "<t:" <> predDateUTC <> ":f>"
           content =
-            ping <> "\n" <> predDateTimeStampRel <> ", on " <> predDateTimeStampAbs <> ", " <>
+            ping <> "\nOn" <> predDateTimeStampAbs <> ", " <>
             "you asked for me to send you the following reminder:\n" <> "*" <>
             reminderContent rd <> "*."
       in do 

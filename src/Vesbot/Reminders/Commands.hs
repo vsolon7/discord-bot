@@ -83,7 +83,7 @@ createInitialReminderResponse currTime mrcd =
             dueDateTimeStampRel = "<t:" <> dueDateUTC <> ":R>"
             dueDateTimeStampAbs = "<t:" <> dueDateUTC <> ":f>"
             response =
-              "Reminder set! " <> dueDateTimeStampRel <> ", on " <> dueDateTimeStampAbs <>
+              "Reminder set! On " <> dueDateTimeStampAbs <> ", which is in " <> dueDateTimeStampRel <>
               ", I will remind you of the following:\n*" <> reminderContent rd <> "*."
         in
           interactionResponseBasic response
