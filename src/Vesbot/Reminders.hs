@@ -22,11 +22,12 @@ sendReminder env rid cid mid = do
     Nothing -> Logging.log Error $ "Tried to announce the due reminder with ID" <> showT rid <> ", but \
       \there are no reminders in the database corresponding to that reminder ID!"
     Just rd ->
-      let predDateUTC = showT . utcToInt $ reminderMadeDate rd
+      let ping = "<@" <> showT (reminderUserId rd) <> ">"
+          predDateUTC = showT . utcToInt $ reminderMadeDate rd
           predDateTimeStampRel = "<t:" <> predDateUTC <> ":R>"
           predDateTimeStampAbs = "<t:" <> predDateUTC <> ":f>"
           content =
-            predDateTimeStampRel <> ", on " <> predDateTimeStampAbs <> ", " <>
+            ping <> "\n" <> predDateTimeStampRel <> ", on " <> predDateTimeStampAbs <> ", " <>
             "you asked for me to send you the following reminder:\n" <> "*" <>
             reminderContent rd <> "*."
       in do 
