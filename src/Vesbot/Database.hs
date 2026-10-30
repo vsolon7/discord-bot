@@ -9,6 +9,7 @@ import Vesbot.Database.Types (DBConnection, withDB)
 
 import qualified Vesbot.ArgumentTimer.Database as ArgumentTimer (initTable)
 import qualified Vesbot.Predictions.Database as Predictions (initTable)
+import qualified Vesbot.Reminders.Database as Reminders (initTable)
 import qualified Vesbot.Activity.Database as Activity (initUserActivityTable, initEmojiUseTable)
 import qualified Vesbot.Currency.Database as Currency (initCurrencyTable, initEmojiTable)
 
@@ -23,6 +24,7 @@ initDBConnection databaseFile = do
 
   ArgumentTimer.initTable threadSafeDBConnection
   Predictions.initTable threadSafeDBConnection
+  Reminders.initTable threadSafeDBConnection
   Activity.initUserActivityTable threadSafeDBConnection
   Activity.initEmojiUseTable threadSafeDBConnection
   Currency.initCurrencyTable threadSafeDBConnection

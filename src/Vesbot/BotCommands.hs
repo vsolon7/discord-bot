@@ -12,6 +12,7 @@ import Vesbot.BotCommands.Types
 import Vesbot.ArgumentTimer.Commands (viewAC, resetAC)
 import Vesbot.Predictions.Commands (makePrediction)
 import Vesbot.Currency.Commands (viewCurrencyCommand, payCommand, viewRichestUsersCommand, viewEmojisCommand)
+import Vesbot.Reminders.Commands (setReminder)
 
 import qualified Data.Text as T
 import Data.Time (getCurrentTime)
@@ -25,6 +26,7 @@ slashCommands env cfg =
   , glorp
   , viewAC (envDBConnection env) cfg
   , makePrediction env
+  , setReminder env
   , viewCurrencyCommand (envDBConnection env) cfg
   , payCommand (envDBConnection env) cfg
   , viewRichestUsersCommand (envDBConnection env) cfg

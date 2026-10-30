@@ -140,7 +140,7 @@ makePrediction env = SlashCommand
                 let a = AnnounceDuePrediction pid cid (messageId msg)
                 r <- scheduleJob (envScheduler env) (Just $ "prediction:" <> showT pid) (Once . predictionDueDate $ pd) a
                 case r of
-                  Left err -> Logging.log Error $ "Error scheduling a prediction due date. \
+                  Left err -> Logging.log Error $ "Error scheduling a prediction announcement. \
                     \The job scheduler returned the following error:\n" <> err
                   _ -> return ()
             Left err -> Logging.log Error $ "Error acquiring the bot's prediction reply message.\

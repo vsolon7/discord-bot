@@ -75,9 +75,6 @@ computeNumReacts (DropTableRates rates) = go rates 0
           when (n > 0) $ Logging.log Info $ "Reacting " <> showT n <> " times with rare emoji(s) to a message."
           return n
 
--- BUG: there is a very small chance that the program will crash (well, discordOnError will catch the exception
--- so it won't ACTUALLY crash, but this will fail) if the bot tries to select too many emojis from the rare emoji
--- list.
 selectReact :: Int -> [Int] -> [(Int, RareEmoji)] -> IO (Int, RareEmoji)
 selectReact totalWeight ignore res = do
   roll <- randomRIO (1, totalWeight) :: IO Int
@@ -99,7 +96,8 @@ selectReact totalWeight ignore res = do
 selectRandomEmojiReacts :: DropTableRates -> [RareEmoji] -> IO [RareEmoji]
 selectRandomEmojiReacts dtr res = do
   let totalWeight = sum . map rareEmojiChance $ res
-  numReacts <- computeNumReacts dtr
+      numRes = length res
+  numReacts <- fmap (min numRes) (computeNumReacts dtr) -- numReacts should be at most the number of rare emojis.
   go totalWeight numReacts [] []
   where
     ixres = zip [1..] res

@@ -51,13 +51,17 @@ library
     Vesbot.Predictions,
     Vesbot.Predictions.Database,
     Vesbot.Predictions.Types,
-    Vesbot.Predictions.Commands
+    Vesbot.Predictions.Commands,
+    Vesbot.Reminders,
+    Vesbot.Reminders.Database,
+    Vesbot.Reminders.Types,
+    Vesbot.Reminders.Commands
     Vesbot.Currency,
     Vesbot.Currency.Types,
     Vesbot.Currency.Database,
     Vesbot.Currency.Commands
   build-depends:
-    base >= 4.20.0.0,
+    base >= 4.10.0.0,
     discord-haskell == 1.19.0,
     text ^>= 2.1.2,
     bytestring ^>= 0.12.2.0,

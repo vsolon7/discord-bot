@@ -73,7 +73,8 @@ _RARE_EMOJI_FILE = "appdata/config/rare_emojis.json"
 _DROP_TABLE_RATES :: Int -> Int
 _DROP_TABLE_RATES n
   | n == 0 = 650
-  | n > 0 = 2
+  | 0 < n && n < 4 = 2
+  | 4 <= n = 3
   | otherwise = 0
 
 getToken :: IO T.Text
