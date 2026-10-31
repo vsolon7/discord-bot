@@ -118,7 +118,7 @@ createViewEmojisResponse dbconn userOrErr = do
       let as = emojiQueryAmounts res
           response = if null as
             then "They have no emojis!"
-            else T.intercalate "  |  " [ "<" <> name <> ">" <> ": " <> showT amt | (name, amt) <- as, amt /= 0 ]
+            else T.intercalate "  |  " [ "<:" <> name <> ">" <> ": " <> showT amt | (name, amt) <- as, amt /= 0 ]
       return (ephemeralResponseBasic response)
 
 
