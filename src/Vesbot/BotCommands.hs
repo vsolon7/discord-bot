@@ -189,7 +189,7 @@ gamble cfg env = SlashCommand
 
             -- get a prize if you meet the win condition defined below
             when (winCondition n mCall rollResult) $
-              onWin intr uid n
+              onWin intr uid n mCall
   }
   where
     cmdName = "gamble"
@@ -256,7 +256,7 @@ gamble cfg env = SlashCommand
 
     computePayout n = fromInteger (n `div` 20)
 
-    onWin intr uid n = do
+    onWin intr uid n mCall = do
       let iTok = interactionToken intr
       maybeMsg <- restCall $ -- get the message the bot responded with.
         R.GetOriginalInteractionResponse
@@ -279,7 +279,10 @@ gamble cfg env = SlashCommand
               cid = showT . messageChannelId $ msg
               mid = showT . messageId $ msg
               link = "https://discord.com/channels/" <> (showT . cfgGuildId $ cfg) <> "/" <> cid <> "/" <> mid
-              message = "HOLY. " <> userPing <> " just rolled a " <> "d" <> showT n <> " and rolled the higest value. CHECK IT: " <> link
+              method = case mCall of
+                Nothing -> " rolled a " <> showT n <> " on the d" <> showT n <> "."
+                Just c -> " called a " <> c <> " on the d" <> showT n <> ", then rolled a " <> c <> "."
+              message = "HOLY. " <> userPing <> "just " <> method <> " CHECK IT: " <> link
           liftIO $ updateEmojis (envDBConnection env) eUpdate
           announce (cfgAnnouncementCID cfg) message
 
