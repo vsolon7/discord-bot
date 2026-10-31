@@ -178,38 +178,41 @@ gamble cfg env = SlashCommand
             (interactionId intr)
             (interactionToken intr)
             (ephemeralResponseBasic err) 
-      Right n -> do
+      Right (n, mCall) -> do
         mUsr <- liftIO $ tryToGetUser (interactionUser intr) -- this command is only going to work for guild members
         case mUsr of
           Nothing -> return ()
           Just usr -> do
             let uid = userId usr
             currencyGuard (cfgCurrencyInfo cfg) cmdName (envDBConnection env) uid cmdCost intr $ do
-            rollResult <- rollResponse n intr
+            rollResult <- rollResponse n mCall intr
 
-            -- get a prize if you meet the win condition
-            when (winCondition n rollResult) $
+            -- get a prize if you meet the win condition defined below
+            when (winCondition n mCall rollResult) $
               onWin intr uid n
   }
   where
     cmdName = "gamble"
     cmdCost = 0.02
     minRoll = 50
-    opt = OptionValueInteger "n" Nothing "The number of sides the die has (must be >= 50)" Nothing True (Left False) (Just minRoll) Nothing
+    opt1 = OptionValueInteger "n" Nothing "The number of sides the die has (must be >= 50)" Nothing True (Left False) (Just minRoll) Nothing
+    opt2 = OptionValueInteger "call" Nothing "(Optional) What you think you'll roll" Nothing False (Left False) (Just 0) Nothing
     reg = -- Command registration
       CreateApplicationCommandChatInput
         cmdName
         Nothing
         ("Gamble by rolling an n-sided die. Cost: " <> showC (cfgCurrencyInfo cfg) cmdCost)
         Nothing 
-        (Just $ OptionsValues [opt])
+        (Just $ OptionsValues [opt1, opt2])
         Nothing
         (Just False)
 
-    parseCommand :: Interaction -> Maybe OptionsData -> Either T.Text Integer
+    parseCommand :: Interaction -> Maybe OptionsData -> Either T.Text (Integer, Maybe Integer)
     parseCommand InteractionApplicationCommand {} opts = do
       optValues <- extractOptionsData cmdName opts
-      extractField extractIntegerOption "n" cmdName optValues
+      n <- extractField extractIntegerOption "n" cmdName optValues
+      let call = extractIntegerOption "call" optValues
+      return (n, call)
     parseCommand _ _ = Left "Tried to parse a non slash command on an interaction that is not an application command."
 
     tryToGetUser :: MemberOrUser -> IO (Maybe User)
@@ -227,12 +230,13 @@ gamble cfg env = SlashCommand
             return Nothing
           Just u -> return (Just u)
 
-    rollResponse :: Integer -> Interaction -> DiscordHandler Integer
-    rollResponse n intr = do
+    rollResponse :: Integer -> Maybe Integer -> Interaction -> DiscordHandler Integer
+    rollResponse n mCall intr = do
       rand <- liftIO $ uniformRM (1, n) globalStdGen :: DiscordHandler Integer
-      let response = "You rolled a " <> showT rand <> " on the " <> "d" <> showT n <> "."
-      Logging.log Info $ "User rolled a " <> "d" <> showT n <> " with the roll command and rolled a " <> showT rand <> "."
-
+      let response = case mCall of
+            Nothing -> "You rolled a " <> showT rand <> " on the " <> "d" <> showT n <> "."
+            Just c -> "You called a " <> showT c <> " on the " <> "d" <> showT n <> ", and you rolled a " <>
+                      showT rand <> "."
       res <- restCall $
         R.CreateInteractionResponse
           (interactionId intr)
@@ -246,7 +250,10 @@ gamble cfg env = SlashCommand
 
       return rand
 
-    winCondition n dieRoll = n >= minRoll && dieRoll == n
+    winCondition n mCall dieRoll = case mCall of
+      Nothing -> n >= minRoll && dieRoll == n
+      Just c -> n >= minRoll && dieRoll == c
+
     computePayout n = fromInteger (n `div` 20)
 
     onWin intr uid n = do

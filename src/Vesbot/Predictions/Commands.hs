@@ -38,7 +38,7 @@ parsePredictionCommand
     let cmdName = applicationCommandDataName cmdData
 
     optValues <- extractOptionsData cmdName opts
-    confidence <- extractField extractNumberOption "confidence" cmdName optValues
+    let confidence = extractNumberOption "confidence" optValues -- it's ok if it fails since it's optional
     predText <- extractField extractStringOption "prediction" cmdName optValues
     dueDateText <- extractField extractStringOption "date" cmdName optValues
     _ <- maybeToEither
@@ -67,7 +67,7 @@ parsePredictionCommand
       ( PredictionData
           { predictionUserId = uid
           , predictionContent = predText
-          , predictionConfidence = Just confidence
+          , predictionConfidence = confidence
           , predictionMadeDate = currTime
           , predictionDueDate = dueDateUTC
           }
