@@ -14,7 +14,7 @@ import Discord.Types
 import qualified Data.Text as T
 import Control.Monad (unless, when)
 import Data.List (find)
-import System.Random
+import System.Random.Stateful (uniformRM, globalStdGen)
 
 
 messageHandler :: Config -> Env -> Message -> DiscordHandler ()
@@ -72,7 +72,7 @@ computeNumReacts (DropTableRates rates) = go rates 0
   where
     go r n = do
       let chance = rates n
-      roll <- randomRIO (1, chance) :: IO Int
+      roll <- uniformRM (1, chance) globalStdGen :: IO Int
       if roll == chance
         then go r (n+1)
         else do
@@ -81,7 +81,7 @@ computeNumReacts (DropTableRates rates) = go rates 0
 
 selectReact :: Int -> [Int] -> [(Int, RareEmoji)] -> IO (Int, RareEmoji)
 selectReact totalWeight ignore res = do
-  roll <- randomRIO (1, totalWeight) :: IO Int
+  roll <- uniformRM (1, totalWeight) globalStdGen :: IO Int
   go roll res
   where
     go _ [] = do
