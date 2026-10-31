@@ -116,9 +116,10 @@ createViewEmojisResponse dbconn userOrErr = do
     Right uid -> do
       res <- getEmojis dbconn uid
       let as = emojiQueryAmounts res
+          userPing = "<@" <> showT uid <> ">"
           response = if null as
-            then "They have no emojis!"
-            else T.intercalate "  |  " [ "<:" <> name <> ">" <> ": " <> showT amt | (name, amt) <- as, amt /= 0 ]
+            then userPing <> " has no emojis!"
+            else userPing <> "'s rare emoji inventory:\n" <> T.intercalate "  |  " [ "<:" <> name <> ">" <> ": " <> showT amt | (name, amt) <- as, amt /= 0 ]
       return (ephemeralResponseBasic response)
 
 
