@@ -5,7 +5,7 @@ import Vesbot.Utils (liftIO, fromBot, forM_, threadDelay, announce, showT)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..), DropTableRates(..))
 import Vesbot.Activity (updateMessageActivity)
-import Vesbot.Responses (KeywordResponseData(..), KeywordResponse(..), RareEmoji(..))
+import Vesbot.Responses (KeywordResponseData(..), KeywordResponse(..), RareEmoji(..), selectNRandomRareEmojis)
 import Vesbot.Currency (EmojiUpdate(..), updateEmojis)
 
 import Discord
@@ -59,11 +59,12 @@ rareEmojiRoll cfg env msg = do
     threadDelay 500000 -- wait 0.5 seconds in between reacts
   unless (null selected) $ do
     let uid = userId . messageAuthor $ msg
+        ping = "<@" <> showT uid <> ">"
         eUpdate = EmojiUpdate uid [(rareEmojiId re, 1) | re <- selected ]
         cid = showT . messageChannelId $ msg
         mid = showT . messageId $ msg
         link = "https://discord.com/channels/" <> (showT . cfgGuildId $ cfg) <> "/" <> cid <> "/" <> mid
-        message = "HOLY. CHECK IT: " <> link
+        message = "HOLY. " <> ping <> " just got a random drop of " <> showT (length selected) <> " rare emoji react(s). CHECK IT: " <> link
     liftIO $ updateEmojis (envDBConnection env) eUpdate
     announce (cfgAnnouncementCID cfg) message
 
@@ -79,35 +80,7 @@ computeNumReacts (DropTableRates rates) = go rates 0
           when (n > 0) $ Logging.log Info $ "Reacting " <> showT n <> " times with rare emoji(s) to a message."
           return n
 
-selectReact :: Int -> [Int] -> [(Int, RareEmoji)] -> IO (Int, RareEmoji)
-selectReact totalWeight ignore res = do
-  roll <- uniformRM (1, totalWeight) globalStdGen :: IO Int
-  go roll res
-  where
-    go _ [] = do
-      Logging.log Error "Tried to select an emoji from an empty list of emojis after doing a rare drop roll."
-      error "fatal error"
-    go _ [r] = return r
-    go num ((n,r):rs) =
-      if n `elem` ignore
-        then go num rs
-        else do
-          let num' = num - rareEmojiChance r
-          if num' <= 0
-            then return (n,r)
-            else go num' rs
-
 selectRandomEmojiReacts :: DropTableRates -> [RareEmoji] -> IO [RareEmoji]
 selectRandomEmojiReacts dtr res = do
-  let totalWeight = sum . map rareEmojiChance $ res
-      numRes = length res
-  numReacts <- fmap (min numRes) (computeNumReacts dtr) -- numReacts should be at most the number of rare emojis.
-  go totalWeight numReacts [] []
-  where
-    ixres = zip [1..] res
-    go :: Int -> Int -> [Int] -> [(Int, RareEmoji)] -> IO [RareEmoji]
-    go _ 0 _ selected = return (map snd selected)
-    go w n ignore selected = do
-      r <- selectReact w ignore ixres
-      let w' = sum . map rareEmojiChance $ [ s | (m,s) <- ixres, m `notElem` ignore ]
-      go w' (n-1) (fst r:ignore) (r:selected)
+  n <- computeNumReacts dtr
+  selectNRandomRareEmojis n res
