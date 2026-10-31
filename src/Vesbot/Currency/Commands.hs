@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Vesbot.Currency.Commands
   ( payCommand
   , viewCurrencyCommand
@@ -7,7 +8,7 @@ module Vesbot.Currency.Commands
   ) where
 
 import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, liftIO, void)
-import Vesbot.Parsing (getUserData, extractUserOption, extractNumberOption)
+import Vesbot.Parsing (getUserData, extractUserOption, extractNumberOption, extractField)
 import Vesbot.Config (Config(..), CurrencyConfig(..))
 import Vesbot.Database.Types (DBConnection)
 import Vesbot.Currency.Types (PayCommandData(..), CurrencyQuery(..), EmojiQuery(..), CurrencyUpdate(..))
@@ -37,36 +38,27 @@ showC (CurrencyConfig _ sk sn sm) d =
 
 
 parseUserFieldCommand :: T.Text -> Interaction -> Maybe OptionsData -> Either T.Text UserId
-parseUserFieldCommand cmdTag (InteractionApplicationCommand {}) opts = do
-  dataValues <-
-    maybeToEither
-      ("Could not access the " <> cmdTag <> " command's option fields.")
-      opts
-  maybeToEither
-      ("Could not access user field in the " <> cmdTag <> " command.")
-      (extractUserOption "user" dataValues)
+parseUserFieldCommand cmd (InteractionApplicationCommand {}) opts = do
+  optValues <- optData cmd opts
+  extractField extractUserOption "user" cmd optValues
 
 parseUserFieldCommand _ _ _ = Left "Tried to parse a user field in a non application command interaction."
 
 
 parsePayCommand :: Interaction -> Maybe OptionsData -> Either T.Text PayCommandData
-parsePayCommand cmd@(InteractionApplicationCommand {}) opts = do
-  dataValues <-
-    maybeToEither
-      "Could not access the pay command's option fields."
-      opts
-  payTo <-
-    maybeToEither
-      "Could not access \"pay to\" field."
-      (extractUserOption "pay_to" dataValues)
-  amount <-
-    maybeToEither
-      "Could not access payment amount field."
-      (extractNumberOption "amount" dataValues)
-  uid <-
-    maybeToEither
+parsePayCommand InteractionApplicationCommand {
+  applicationCommandData = cmdData,
+  interactionUser
+} opts = do
+  let cmd = applicationCommandDataName cmdData
+
+  optValues <- optData cmd opts
+  payTo  <- extractField extractUserOption "pay_to" cmd optValues
+  amount <- extractField extractNumberOption "amount" cmd optValues
+  uid    <- maybeToEither
       "Could not get user data. Note that this command can only be used in a server."
-      (getUserData . interactionUser $ cmd)
+      (getUserData interactionUser)
+  
   return $
     PayCommandData
       { payFromUser = uid
@@ -236,3 +228,6 @@ viewEmojisCommand dbconn = SlashCommand
           (Just $ OptionsValues [ o1 ])
           Nothing
           (Just False)
+
+optData :: T.Text  -> Maybe OptionsData -> Either T.Text OptionsData
+optData cmd = maybeToEither ("Could not access option data for `" <> cmd <> "` command")

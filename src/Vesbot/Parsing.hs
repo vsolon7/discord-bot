@@ -15,6 +15,7 @@ import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds, posixSecondsToUTCTime)
 import Data.Int (Int64)
 import Data.Char (isDigit)
 import Data.Scientific (toRealFloat)
+import Vesbot.Utils (maybeToEither)
 
 
 intToUTC :: Int64 -> UTCTime
@@ -89,6 +90,11 @@ extractUserOption optionName (OptionsDataValues vs) =
   case [uid | OptionDataValueUser n uid <- vs, n == optionName] of
     (uid:_) -> Just uid
     _     -> Nothing
+
+extractField :: (T.Text -> OptionsData -> Maybe a) -> T.Text -> T.Text -> OptionsData -> Either T.Text a
+extractField f field cmd = maybeToEither err . f field
+  where
+    err = "Could not access `" <> field <> "` field in the `" <> cmd <> "` command"
 
 
 -- Helper function that extracts the UserId from a MemberOrUser type
