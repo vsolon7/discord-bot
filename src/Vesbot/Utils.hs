@@ -111,7 +111,7 @@ sendMessage cid replyTo content =
 ackButtonEditAndRemove :: InteractionId -> InteractionToken -> Message -> T.Text -> DiscordHandler ()
 ackButtonEditAndRemove iid itok omsg addition =
   let ocontent = messageContent omsg
-      reply = ocontent <> "\n" <> addition
+      reply = ocontent <> addition
       response = InteractionResponseMessage (Just False) (Just reply) Nothing Nothing Nothing (Just []) Nothing []
   in do
     result <- restCall $ R.CreateInteractionResponse iid itok (InteractionResponseUpdateMessage response)

@@ -72,8 +72,8 @@ predictionButtonResponse dbconn iid itok pid uid msg torf = do
           let reply = ephemeralResponseBasic "Only the original predictor can declare the validity of their prediction."
           void . restCall $ R.CreateInteractionResponse iid itok reply
         else do
-          let result = if torf == "T" then "correct" else "incorrect"
-              reply = "**Marked this prediction as having been " <> result <> ".**"
+          let result = if torf == "T" then "Yes" else "No"
+              reply = " **" <> result <> ".**"
           ackButtonEditAndRemove iid itok msg reply
           liftIO $ markResult dbconn pid (torf == "T")
 
