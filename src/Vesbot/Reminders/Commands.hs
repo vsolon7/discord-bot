@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Vesbot.Reminders.Commands where
 
 import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, void, liftIO)
 import Vesbot.Config (Env(..))
 import Vesbot.Logging as Logging (log, LogType(..))
-import Vesbot.Parsing (extractStringOption, parseDateInput, utcToInt, getUserData)
+import Vesbot.Parsing (extractStringOption, extractField, extractOptionsData, parseDateInput, utcToInt, getUserData)
 import Vesbot.Actions (Action(..))
 import Vesbot.Reminders.Types
 import Vesbot.Reminders.Database
@@ -21,32 +23,32 @@ import Data.Time
 import qualified Data.Text as T
 
 parseReminderCommand :: UTCTime -> Interaction -> Maybe OptionsData -> Either T.Text (ReminderData, ChannelId)
-parseReminderCommand currTime cmd@InteractionApplicationCommand {} opts =
+parseReminderCommand
+  currTime
+  InteractionApplicationCommand
+    { applicationCommandData = cmdData
+    , interactionUser
+    , interactionChannelId
+    , interactionGuildId
+    }
+  opts =
   do
-    dataValues <-
-      maybeToEither
-        "Could not access the reminder command's option fields."
-        opts
-    reminderText <-
-      maybeToEither
-        "Could not access content field."
-        (extractStringOption "content" dataValues)
-    dueDateText <-
-      maybeToEither
-        "Could not access reminder date field."
-        (extractStringOption "date" dataValues)
+    let cmdName = applicationCommandDataName cmdData
+    optValues <- extractOptionsData cmdName opts
+    reminderText <- extractField extractStringOption "content" cmdName optValues
+    dueDateText <- extractField extractStringOption "date" cmdName optValues
     _ <-
       maybeToEither
         "Error accessing Guild ID for the remind command. Note that this command can only be used in a server."
-        (interactionGuildId cmd)
+        interactionGuildId
     cid <-
       maybeToEither
         "Error accessing channel ID for the remind command. Note that this command can only be used in a server."
-        (interactionChannelId cmd)
+        interactionChannelId
     uid <-
       maybeToEither
         "Could not get user data for the remind command. Note that this command can only be used in a server."
-        (getUserData . interactionUser $ cmd)
+        (getUserData interactionUser)
     dueDateUTC <-
       maybeToEither
         (T.intercalate "\n"

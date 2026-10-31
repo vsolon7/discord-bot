@@ -6,6 +6,7 @@ import Vesbot.Parsing (emojiToText)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..))
 import Vesbot.Activity (modifyReactionActivity, addEmojiUse)
+import Vesbot.Currency (CurrencyUpdate(..), updateCurrency)
 
 import Discord
 import Discord.Types
@@ -21,12 +22,14 @@ reactionAddHandler _ env info@(ReactionInfo _ _ _ _ emoji) = do
   case mUsers of
     Nothing -> return ()
     Just (reacter, reactee) ->
-      -- self reactions don't count and we don't care to track how many reactions bots get.
+      -- self reactions don't count and anything bot related doesn't count
       when (userId reacter /= userId reactee && not (userIsBot reactee || userIsBot reacter)) $
           let reacteeId = userId reactee
               reacterId = userId reacter
               eName = emojiToText emoji
           in liftIO $ do
+            let cu = CurrencyUpdate (userId reactee) 0.1
+            updateCurrency (envDBConnection env) cu
             modifyReactionActivity (envDBConnection env) reacterId reacteeId
             addEmojiUse (envDBConnection env) eName now
 

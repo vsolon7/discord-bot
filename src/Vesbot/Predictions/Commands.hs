@@ -94,7 +94,7 @@ createInitialPredictionResponse currTime mpcd =
             Just c  -> "They are " <> showT c <> "%" <> " confident"
           response = T.intercalate "\n"
             [ userPing <> " has made a prediction!"
-            , responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <> 
+            , responseStart <> " that on or before " <> dueDateTimeStampAbs <> ", which is " <> dueDateTimeStampRel <>
             ", the following will occur:"
             , "*" <> predictionContent pd <> "*."
             ]

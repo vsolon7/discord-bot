@@ -43,7 +43,8 @@ messageHandler cfg env =
             then Logging.log Error
               "Received message with a different Guild ID than the Guild ID the bot was configured with.\
               \Does the token correspond to the Guild ID in the guildid file?"
-          else liftIO $ updateMessageActivity (envDBConnection env) msg
+            else liftIO $
+              updateMessageActivity (envDBConnection env) msg
   where
     contains :: Message -> T.Text -> Bool
     contains msg t = t `T.isInfixOf` (T.toLower . messageContent $ msg)
