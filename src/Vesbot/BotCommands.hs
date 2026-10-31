@@ -281,7 +281,7 @@ gamble cfg env = SlashCommand
               link = "https://discord.com/channels/" <> (showT . cfgGuildId $ cfg) <> "/" <> cid <> "/" <> mid
               method = case mCall of
                 Nothing -> " rolled a " <> showT n <> " on the d" <> showT n <> "."
-                Just c -> " called a " <> c <> " on the d" <> showT n <> ", then rolled a " <> c <> "."
+                Just c -> " called a " <> showT c <> " on the d" <> showT n <> ", then rolled a " <> showT c <> "."
               message = "HOLY. " <> userPing <> "just " <> method <> " CHECK IT: " <> link
           liftIO $ updateEmojis (envDBConnection env) eUpdate
           announce (cfgAnnouncementCID cfg) message
