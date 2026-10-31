@@ -91,11 +91,17 @@ extractUserOption optionName (OptionsDataValues vs) =
     (uid:_) -> Just uid
     _     -> Nothing
 
-extractField :: (T.Text -> OptionsData -> Maybe a) -> T.Text -> T.Text -> OptionsData -> Either T.Text a
+extractField :: (T.Text -> OptionsData -> Maybe a) -- function to extract the field with
+             -> T.Text -- field to extract
+             -> T.Text -- command name
+             -> OptionsData
+             -> Either T.Text a -- either error message or the thing to be extracted
 extractField f field cmd = maybeToEither err . f field
   where
     err = "Could not access `" <> field <> "` field in the `" <> cmd <> "` command"
 
+extractOptionsData :: T.Text -> Maybe OptionsData -> Either T.Text OptionsData
+extractOptionsData cmd = maybeToEither ("Could not access option data for `" <> cmd <> "` command")
 
 -- Helper function that extracts the UserId from a MemberOrUser type
 getUserData :: MemberOrUser -> Maybe UserId

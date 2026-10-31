@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Vesbot.Predictions.Commands
   ( makePrediction
   ) where
@@ -6,7 +8,7 @@ module Vesbot.Predictions.Commands
 import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, void, liftIO)
 import Vesbot.Config (Env(..))
 import Vesbot.Logging as Logging (log, LogType(..))
-import Vesbot.Parsing (extractNumberOption, extractStringOption, parseDateInput, utcToInt, getUserData)
+import Vesbot.Parsing (extractNumberOption, extractStringOption, parseDateInput, extractField, utcToInt, getUserData, extractOptionsData)
 import Vesbot.Actions (Action(..))
 import Vesbot.Predictions.Types
 import Vesbot.Predictions.Database
@@ -24,36 +26,32 @@ import qualified Data.Text as T
 
 
 parsePredictionCommand :: UTCTime -> Interaction -> Maybe OptionsData -> Either T.Text (PredictionData, ChannelId)
-parsePredictionCommand currTime cmd@InteractionApplicationCommand {} opts =
-  do
-    dataValues <-
-      maybeToEither
-        "Could not access the prediction command's option fields."
-        opts
-    let confidence = -- :: Maybe Double, since Nothing is OK; confidence level isn't a required input
-          extractNumberOption
-            "confidence"
-            dataValues
-    predText <-
-      maybeToEither
-        "Could not access prediction field."
-        (extractStringOption "prediction" dataValues)
-    dueDateText <-
-      maybeToEither
-        "Could not access prediction date field."
-        (extractStringOption "date" dataValues)
-    _ <-
-      maybeToEither
-        "Error accessing Guild ID for the prediction command. Note that this command can only be used in a server."
-        (interactionGuildId cmd)
+parsePredictionCommand
+  currTime
+  InteractionApplicationCommand
+    { applicationCommandData = cmdData
+    , interactionUser
+    , interactionChannelId
+    , interactionGuildId
+    }
+  opts = do
+    let cmdName = applicationCommandDataName cmdData
+
+    optValues <- extractOptionsData cmdName opts
+    confidence <- extractField extractNumberOption "confidence" cmdName optValues
+    predText <- extractField extractStringOption "prediction" cmdName optValues
+    dueDateText <- extractField extractStringOption "date" cmdName optValues
+    _ <- maybeToEither
+          "Error accessing Guild ID for the prediction command. Note that this command can only be used in a server."
+          interactionGuildId
     cid <-
       maybeToEither
         "Error accessing channel ID for the prediction command. Note that this command can only be used in a server."
-        (interactionChannelId cmd)
+        interactionChannelId
     uid <-
       maybeToEither
         "Could not get user data for the prediction command. Note that this command can only be used in a server."
-        (getUserData . interactionUser $ cmd)
+        (getUserData interactionUser)
     dueDateUTC <-
       maybeToEither
         (T.intercalate "\n"
@@ -69,7 +67,7 @@ parsePredictionCommand currTime cmd@InteractionApplicationCommand {} opts =
       ( PredictionData
           { predictionUserId = uid
           , predictionContent = predText
-          , predictionConfidence = confidence
+          , predictionConfidence = Just confidence
           , predictionMadeDate = currTime
           , predictionDueDate = dueDateUTC
           }
