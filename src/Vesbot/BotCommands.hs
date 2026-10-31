@@ -162,7 +162,7 @@ roll cfg env = SlashCommand
       CreateApplicationCommandChatInput
         "roll"
         Nothing
-        ("Roll a dice with n sides")
+        "Roll a die with n sides"
         Nothing 
         (Just $ OptionsValues [opt])
         Nothing
