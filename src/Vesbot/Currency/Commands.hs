@@ -5,6 +5,7 @@ module Vesbot.Currency.Commands
   , viewCurrencyCommand
   , viewRichestUsersCommand
   , viewEmojisCommand
+  , showC
   ) where
 
 import Vesbot.Utils (showT, maybeToEither, ephemeralResponseBasic, liftIO, void)
@@ -34,7 +35,12 @@ splitDouble d =
 showC :: CurrencyConfig -> Double -> T.Text
 showC (CurrencyConfig _ sk sn sm) d =
   let (k, n, m) = splitDouble d
-  in sk <> showT k <> " " <> sn <> showT n <> " " <> sm <> showT m
+      noZeros =
+        map (\(units,v) -> units <> showT v)
+        . filter (\(_,v) -> v /= 0)
+        $ [(sk, k), (sn, n), (sm, m)]
+  in
+    T.intercalate " " $ if null noZeros then [sm <> "0"] else noZeros
 
 
 parseUserFieldCommand :: T.Text -> Interaction -> Maybe OptionsData -> Either T.Text UserId
