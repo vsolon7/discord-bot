@@ -36,17 +36,17 @@ showC (CurrencyConfig _ sk sn sm) d =
   in sk <> showT k <> " " <> sn <> showT n <> " " <> sm <> showT m
 
 
-parseUserFieldCommand :: Interaction -> Maybe OptionsData -> Either T.Text UserId
-parseUserFieldCommand (InteractionApplicationCommand {}) opts = do
+parseUserFieldCommand :: T.Text -> Interaction -> Maybe OptionsData -> Either T.Text UserId
+parseUserFieldCommand cmdTag (InteractionApplicationCommand {}) opts = do
   dataValues <-
     maybeToEither
-      "Could not access the view currency command's option fields."
+      ("Could not access the " <> cmdTag <> " command's option fields.")
       opts
   maybeToEither
-      "Could not access user field in the view currency command."
+      ("Could not access user field in the " <> cmdTag <> " command.")
       (extractUserOption "user" dataValues)
 
-parseUserFieldCommand _ _ = Left "Tried to parse a user field in a non application command interaction."
+parseUserFieldCommand _ _ _ = Left "Tried to parse a user field in a non application command interaction."
 
 
 parsePayCommand :: Interaction -> Maybe OptionsData -> Either T.Text PayCommandData
@@ -173,7 +173,7 @@ viewCurrencyCommand dbconn cfg = SlashCommand
   { commandName = "viewcurrency"
   , commandRegistration = Just reg
   , slashCommandHandler = \intr opts -> do
-      let uid = parseUserFieldCommand intr opts
+      let uid = parseUserFieldCommand "viewcurrency" intr opts
       botReply <- liftIO $ createViewCurrencyResponse dbconn (cfgCurrencyInfo cfg) uid
       -- Respond with the error or the correct reply
       void . restCall $
@@ -217,7 +217,7 @@ viewEmojisCommand dbconn = SlashCommand
   { commandName = "viewemojis"
   , commandRegistration = Just reg
   , slashCommandHandler = \intr opts -> do
-      let uid = parseUserFieldCommand intr opts
+      let uid = parseUserFieldCommand "viewemojis" intr opts
       botReply <- liftIO $ createViewEmojisResponse dbconn uid
       void . restCall $
         R.CreateInteractionResponse
