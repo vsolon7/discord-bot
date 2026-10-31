@@ -40,7 +40,8 @@ data RareEmojiData = RareEmojiData
   } deriving (Generic, Show, AE.FromJSON)
 
 data RareEmoji = RareEmoji
-  { rareEmojiHandler :: Message -> DiscordHandler ()
+  { rareEmojiId :: T.Text
+  , rareEmojiHandler :: Message -> DiscordHandler ()
   , rareEmojiChance :: Int
   }
 
@@ -62,7 +63,8 @@ createKeywordResponse res = KeywordResponse
 
 createRareEmoji :: RareEmojiData -> RareEmoji
 createRareEmoji ld = RareEmoji
-  { rareEmojiHandler = \msg -> reactToMessage msg (rareEmojiDataId ld)
+  { rareEmojiId = rareEmojiDataId ld
+  , rareEmojiHandler = \msg -> reactToMessage msg (rareEmojiDataId ld)
   , rareEmojiChance = rareEmojiDataChance ld
   }
 

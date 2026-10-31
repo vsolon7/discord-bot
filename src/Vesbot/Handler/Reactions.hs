@@ -6,13 +6,12 @@ import Vesbot.Parsing (emojiToText)
 import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..))
 import Vesbot.Activity (modifyReactionActivity, addEmojiUse)
-import Vesbot.Currency (updateCurrency, updateEmojis, CurrencyUpdate(..), EmojiUpdate(..))
 
 import Discord
 import Discord.Types
 import qualified Discord.Requests as R
 
-import Control.Monad (unless)
+import Control.Monad (when)
 import Data.Time (getCurrentTime)
 
 reactionAddHandler :: Config -> Env -> ReactionInfo -> DiscordHandler ()
@@ -23,28 +22,16 @@ reactionAddHandler _ env info@(ReactionInfo _ _ _ _ emoji) = do
     Nothing -> return ()
     Just (reacter, reactee) ->
       -- self reactions don't count and we don't care to track how many reactions bots get.
-      unless (userId reacter == userId reactee || userIsBot reactee) $
-      liftIO $ do
-        let reacteeId = userId reactee
-            reacterId = userId reacter
-            eName = emojiToText emoji
-        updateEmojis (envDBConnection env) (EmojiUpdate reacteeId [(eName, 1)])
-        unless (userIsBot reacter) $ do -- bots reacting to you doesn't affect emoji use history
-          updateCurrency (envDBConnection env) (CurrencyUpdate reacteeId 0.1)
-          modifyReactionActivity (envDBConnection env) reacterId reacteeId
-          addEmojiUse (envDBConnection env) eName now
+      when (userId reacter /= userId reactee && not (userIsBot reactee || userIsBot reacter)) $
+          let reacteeId = userId reactee
+              reacterId = userId reacter
+              eName = emojiToText emoji
+          in liftIO $ do
+            modifyReactionActivity (envDBConnection env) reacterId reacteeId
+            addEmojiUse (envDBConnection env) eName now
 
 reactionRemoveHandler :: Config -> Env -> ReactionInfo -> DiscordHandler ()
-reactionRemoveHandler _ env info@(ReactionInfo _ _ _ _ emoji) = do
-  mUsers <- extractReactionInfo info
-  case mUsers of
-    Nothing -> return ()
-    Just (unreacter, unreactee) ->
-      unless (userId unreacter == userId unreactee || userIsBot unreactee) $
-      liftIO $ do
-        let unreacteeId = userId unreactee
-            eName = emojiToText emoji
-        updateEmojis (envDBConnection env) (EmojiUpdate unreacteeId [(eName, -1)])
+reactionRemoveHandler _ _ _ = return () -- maybe this will be used in the future
 
 extractReactionInfo :: ReactionInfo -> DiscordHandler (Maybe (User, User))
 extractReactionInfo (ReactionInfo rUid mGid cid oMid _) = do

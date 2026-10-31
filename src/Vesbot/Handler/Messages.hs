@@ -6,6 +6,7 @@ import Vesbot.Logging as Logging (log, LogType(..))
 import Vesbot.Config (Config(..), Env(..), DropTableRates(..))
 import Vesbot.Activity (updateMessageActivity)
 import Vesbot.Responses (KeywordResponseData(..), KeywordResponse(..), RareEmoji(..))
+import Vesbot.Currency (EmojiUpdate(..), updateEmojis)
 
 import Discord
 import Discord.Types
@@ -23,7 +24,7 @@ messageHandler cfg env =
       then return ()
     else do
       -- | Lucky emoji dice rolls
-      rareEmojiRoll cfg msg
+      rareEmojiRoll cfg env msg
 
       -- | Check if the message contains one of the response keywords as a substring.
       -- Note that we only check for the *first* such substring match.
@@ -48,19 +49,22 @@ messageHandler cfg env =
     contains msg t = t `T.isInfixOf` (T.toLower . messageContent $ msg)
 
 
-rareEmojiRoll :: Config -> Message -> DiscordHandler ()
-rareEmojiRoll cfg msg = do
+rareEmojiRoll :: Config -> Env -> Message -> DiscordHandler ()
+rareEmojiRoll cfg env msg = do
   let res = cfgRareEmoji cfg
       rates = cfgDropTableRates cfg
   selected <- liftIO $ selectRandomEmojiReacts rates res
-  forM_ selected $ \s -> do
-    rareEmojiHandler s msg
+  forM_ selected $ \e -> do
+    rareEmojiHandler e msg
     threadDelay 500000 -- wait 0.5 seconds in between reacts
   unless (null selected) $ do
-    let cid = showT . messageChannelId $ msg
+    let uid = userId . messageAuthor $ msg
+        eUpdate = EmojiUpdate uid [(rareEmojiId re, 1) | re <- selected ]
+        cid = showT . messageChannelId $ msg
         mid = showT . messageId $ msg
         link = "https://discord.com/channels/" <> (showT . cfgGuildId $ cfg) <> "/" <> cid <> "/" <> mid
         message = "HOLY. CHECK IT: " <> link
+    liftIO $ updateEmojis (envDBConnection env) eUpdate
     announce (cfgAnnouncementCID cfg) message
 
 computeNumReacts :: DropTableRates -> IO Int

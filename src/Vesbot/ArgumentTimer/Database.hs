@@ -9,7 +9,6 @@ import Discord.Types
 
 import Database.SQLite.Simple as SQL
 import qualified Data.Text as T
-import Data.Time (UTCTime)
 import Data.Int (Int64)
 
 
@@ -25,18 +24,15 @@ initTable dbconn = withDB dbconn $
 
 
 getLastArgument :: DBConnection -> IO (Maybe (UTCTime, T.Text, T.Text))
-getLastArgument dbconn = do
-  res <- lookup
-  return res
+getLastArgument dbconn = withDB dbconn $
+  \conn -> do
+    res <- SQL.query_ conn q :: IO [(Int64, T.Text, T.Text)]
+    case res of
+      []    -> return Nothing
+      ((t, cid, mid):_) -> return (Just (intToUTC t, cid, mid))
   where
     q = "SELECT time, channel_id, message_id FROM argument_timer \
         \WHERE id = (SELECT MAX(id) FROM argument_timer)"
-    lookup = withDB dbconn $
-      \conn -> do
-        res <- SQL.query_ conn q :: IO [(Int64, T.Text, T.Text)]
-        case res of
-          []    -> return Nothing
-          ((t, cid, mid):_) -> return (Just (intToUTC t, cid, mid))
 
 
 updateArgumentTime :: DBConnection -> UTCTime -> ChannelId -> MessageId -> IO ()

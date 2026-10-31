@@ -9,6 +9,9 @@ import Discord.Types
 import Data.Time()
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQL
+import Data.Int (Int64)
+
+type ReminderId = Int64
 
 -- | Record to hold all of the information associated to the prediction slash command when the user
 -- sends it to the bot

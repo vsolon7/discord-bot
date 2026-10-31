@@ -65,12 +65,12 @@ announce :: ChannelId -> T.Text -> DiscordHandler ()
 announce acid content = do
     r <- restCall $ R.CreateMessage acid content
     case r of
-      Left err -> Logging.log Error . T.intercalate "\n" $
+      Left err -> Logging.log Error $ T.intercalate "\n"
         [ "Failed to send an announcement."
         , logInfo
         , "Discord returned the error:\n", showT err
         ]
-      _ -> Logging.log Info . T.intercalate "\n" $
+      _ -> Logging.log Info $ T.intercalate "\n"
         [ "Successfully sent an announcement."
         , logInfo
         ]
@@ -92,12 +92,12 @@ sendMessage cid replyTo content =
   in do
     r <- restCall $ R.CreateMessageDetailed cid opts
     case r of
-      Left err -> Logging.log Error . T.intercalate "\n" $
+      Left err -> Logging.log Error $ T.intercalate "\n"
         [ "Error sending a message."
         , logInfo
         , "Discord returned the error:\n" <> showT err
         ]
-      _ -> Logging.log Info . T.intercalate "\n" $
+      _ -> Logging.log Info $ T.intercalate "\n"
         [ "Successfully sent a message."
         , logInfo
         ]
@@ -116,12 +116,12 @@ ackButtonEditAndRemove iid itok omsg addition =
   in do
     result <- restCall $ R.CreateInteractionResponse iid itok (InteractionResponseUpdateMessage response)
     case result of
-      Left err -> Logging.log Error . T.intercalate "\n" $
+      Left err -> Logging.log Error $ T.intercalate "\n"
         [ "Error editing the message a button is attached to."
         , logInfo
         , "Discord Returned the error:\n" <> showT err
         ]
-      _        -> Logging.log Info . T.intercalate "\n" $
+      _        -> Logging.log Info $ T.intercalate "\n"
         [ "Edited a message a button was attached to."
         , logInfo
         ]

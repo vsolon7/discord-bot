@@ -6,9 +6,8 @@ import Vesbot.Utils (liftIO, showT, ackButtonEditAndRemove, ephemeralResponseBas
 import Vesbot.Parsing (utcToInt)
 import Vesbot.Config (Env(..))
 import Vesbot.Database (DBConnection)
-import Vesbot.Predictions.Types (PredictionData(..))
+import Vesbot.Predictions.Types (PredictionId, PredictionData(..))
 import Vesbot.Predictions.Database
-import Data.Int (Int64)
 
 import Discord
 import Discord.Types
@@ -16,14 +15,16 @@ import qualified Discord.Requests as R
 
 import qualified Data.Text as T
 
-type PredictionId = Int64 -- The primary key of the prediction in the database
-
 announceDuePrediction :: Env -> PredictionId -> ChannelId -> MessageId -> DiscordHandler ()
 announceDuePrediction env pid cid mid = do
+  Logging.log Info $ T.intercalate "\n"
+    [ "Attempting to announce a due prediction with the following data:"
+    , logInfo
+    ]
   mpd <- liftIO $ getPredictionById (envDBConnection env) pid
   case mpd of
-    Nothing -> Logging.log Error $ "Tried to announce the due prediction with ID" <> showT pid <> ", but \
-      \there are no predictions in the database corresponding to that prediction ID!"
+    Nothing ->
+      Logging.log Error $ "Could not find the prediction ID in the database."
     Just pd ->
       let userPing = "<@" <> showT (predictionUserId pd) <> ">"
           predDateUTC = showT . utcToInt $ predictionMadeDate pd
@@ -38,7 +39,6 @@ announceDuePrediction env pid cid mid = do
             predictionContent pd <> "*.\n" <>
             "Were they correct?"
       in do 
-        Logging.log Info $ "Announcing the due prediction with ID " <> showT pid <> "..."
         let ref = MessageReference (Just mid) (Just cid) Nothing False
             trueButton = Button ("prediction:" <> showT pid <> ":T") False ButtonStyleSuccess (Just "Yes") Nothing
             falseButton = Button ("prediction:" <> showT pid <> ":F") False ButtonStyleDanger (Just "No") Nothing
@@ -46,10 +46,19 @@ announceDuePrediction env pid cid mid = do
             opts = R.MessageDetailedOpts content False Nothing Nothing [] Nothing (Just ref) (Just [actionRow]) Nothing
         r <- restCall $ R.CreateMessageDetailed cid opts
         case r of
-          Left err -> Logging.log Error $ "Failed to send a prediction announcement. Discord returned the error:\n" <> showT err
-          _ -> Logging.log Info $ "Successfully announced the prediction to channel " <> showT cid <> "."
-
-  liftIO $ markAsNotified (envDBConnection env) pid
+          Left err ->
+            Logging.log Error $
+              "The REST call to send the message failed. Discord returned the error:\n" <> showT err
+          _ -> do
+            liftIO $ markAsNotified (envDBConnection env) pid
+            Logging.log Info $
+              "Successfully announced the due prediction."
+  where
+    logInfo = T.intercalate "\n"
+      ["PREDICTION ID: " <> showT pid
+      ,"CHANNEL ID: " <> showT cid
+      ,"ORIGINAL MESSAGE ID: " <> showT mid
+      ]
 
 
 predictionButtonResponse :: DBConnection -> InteractionId -> InteractionToken -> PredictionId -> UserId -> Message -> T.Text -> DiscordHandler ()

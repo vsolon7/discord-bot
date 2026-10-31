@@ -6,9 +6,11 @@ import Vesbot.Database.Types()
 
 import Discord.Types
 
-import Data.Time()
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQL
+import Data.Int(Int64)
+
+type PredictionId = Int64 -- The primary key of the prediction in the database
 
 -- | Record to hold all of the information associated to the prediction slash command when the user
 -- sends it to the bot

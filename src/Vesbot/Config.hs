@@ -87,7 +87,7 @@ getGuildId = do
     Just g -> return g
     Nothing -> do
       Logging.log Error "Could not parse Guild ID from discord-bot-apidata/guildid"
-      error "Fatal error."
+      error "fatal error"
 
 initBot :: IO (T.Text, Env, Config)
 initBot = do
@@ -108,9 +108,9 @@ initBot = do
 
   let validateRareEmoji red
         | rareEmojiDataChance red < 0 = do
-            Logging.log Error "Lucky emoji chance sent to <0."
+            Logging.log Error "Rare emoji chance sent to <0."
         | rareEmojiDataChance red == 0 = do
-            Logging.log Warn "Lucky emoji chance set to 0. This means that this reaction is removed from the drop table."
+            Logging.log Warn "Rare emoji chance set to 0. This means that this reaction is removed from the drop table."
         | otherwise = return ()
 
   traverse_ validateRareEmoji reds
@@ -128,6 +128,12 @@ scheduleJSONActions as scheduler =
 readAnnouncementChannelId :: FilePath -> IO ChannelId
 readAnnouncementChannelId file = do
   cidText <- readFile file
-  let acid = read cidText
-  Logging.log Info $ "Successfully parsed announcement channel ID in " <> T.pack _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE <> "."
-  return acid
+  case readMaybe cidText of
+    Nothing -> do
+      Logging.log Error $
+        "Could not parse the announcement channel ID in " <> T.pack _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE <> "."
+      error "fatal error"
+    Just acid -> do
+      Logging.log Info $
+        "Successfully parsed the announcement channel ID in " <> T.pack _ANNOUNCEMENT_CHANNEL_ID_CONFIG_FILE <> "."
+      return acid
